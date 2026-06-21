@@ -1,0 +1,37 @@
+import { Card } from "@/components/ui/card";
+import { stats } from "@/lib/data";
+import { Target, Heart, Users, Rocket } from "lucide-react";
+
+export default function About() {
+  return (
+    <div className="container py-12">
+      <div className="max-w-3xl">
+        <span className="text-xs uppercase tracking-widest text-primary font-semibold">About us</span>
+        <h1 className="text-4xl md:text-5xl font-bold mt-2">Welcome to our platform.</h1>
+        <p className="text-lg text-muted-foreground mt-4">This platform was created and developed by <span className="font-semibold text-foreground">Destiny</span>. Our mission is to provide affordable data subscriptions, airtime services, and seamless wallet funding for all users.</p>
+        <p className="text-lg text-muted-foreground mt-3">Thank you for choosing our services.</p>
+      </div>
+
+      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-10">
+        {stats.map((s) => (
+          <Card key={s.label} className="p-5 bg-gradient-card shadow-card"><s.icon className="h-6 w-6 text-primary mb-2" /><p className="text-2xl font-bold">{s.value}</p><p className="text-sm text-muted-foreground">{s.label}</p></Card>
+        ))}
+      </div>
+
+      <div className="grid md:grid-cols-2 gap-6 mt-12">
+        {[
+          { icon: Target, title: "Our mission", body: "Make digital essentials — data and airtime — instant, affordable and stress-free for every Nigerian." },
+          { icon: Heart, title: "Our values", body: "Customer first. Reliability over flash. Transparency by default. Build for the long term." },
+          { icon: Users, title: "Our people", body: "A remote team of 22 engineers, designers and customer champions across Lagos, Abuja and Nairobi." },
+          { icon: Rocket, title: "What's next", body: "Bills, electricity, education pins, and a Data4Me-powered fintech wallet — coming soon." },
+        ].map((b) => (
+          <Card key={b.title} className="p-6 bg-gradient-card shadow-card hover-lift">
+            <div className="h-11 w-11 rounded-xl bg-accent text-accent-foreground grid place-items-center mb-3"><b.icon className="h-5 w-5" /></div>
+            <h3 className="font-semibold text-lg">{b.title}</h3>
+            <p className="text-muted-foreground text-sm mt-1.5">{b.body}</p>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
