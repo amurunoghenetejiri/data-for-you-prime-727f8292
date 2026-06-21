@@ -13,7 +13,7 @@ import Pricing from "./pages/Pricing";
 import Transactions from "./pages/Transactions";
 import Wallet from "./pages/Wallet";
 import Transfer from "./pages/Transfer";
-import EthConvert from "./pages/EthConvert";
+import ResetPassword from "./pages/ResetPassword";
 import Cable from "./pages/Cable";
 import Electricity from "./pages/Electricity";
 import Dashboard from "./pages/Dashboard";
@@ -80,7 +80,7 @@ const App = () => (
               <Route path="/wallet" element={<Wallet />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/transfer" element={<Transfer />} />
-              <Route path="/eth" element={<EthConvert />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/cable" element={<Cable />} />
               <Route path="/electricity" element={<Electricity />} />
               <Route path="/faq" element={<FAQ />} />

@@ -2,21 +2,25 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useApp } from "@/context/AppContext";
 import { Link } from "react-router-dom";
-import { Wallet as WalletIcon, ArrowUpRight, ArrowDownLeft, Wifi, Phone, Tv, Zap, Bitcoin, Send, History, Settings as SettingsIcon, Plus, Sparkles } from "lucide-react";
+import { Wallet as WalletIcon, ArrowUpRight, ArrowDownLeft, Wifi, Phone, Tv, Zap, Send, History, Settings as SettingsIcon, Plus, Sparkles, Bell, User as UserIcon, ArrowUpFromLine, Receipt } from "lucide-react";
 import { NetworkBadge } from "@/components/NetworkBadge";
 import { cn } from "@/lib/utils";
 import { getAvatar } from "@/lib/avatars";
 import { useMemo } from "react";
 
 const ACTIONS = [
+  { to: "/wallet", label: "Wallet", icon: WalletIcon },
   { to: "/wallet", label: "Fund Wallet", icon: Plus, accent: true },
-  { to: "/buy-airtime", label: "Buy Airtime", icon: Phone },
-  { to: "/buy-data", label: "Buy Data", icon: Wifi },
+  { to: "/transactions", label: "Transactions", icon: Receipt },
+  { to: "/transactions", label: "History", icon: History },
+  { to: "/buy-airtime", label: "Airtime", icon: Phone },
+  { to: "/buy-data", label: "Data", icon: Wifi },
   { to: "/cable", label: "Cable TV", icon: Tv },
   { to: "/electricity", label: "Electricity", icon: Zap },
   { to: "/transfer", label: "Transfer", icon: Send },
-  { to: "/eth", label: "ETH → NGN", icon: Bitcoin },
-  { to: "/transactions", label: "History", icon: History },
+  { to: "/withdraw", label: "Withdraw", icon: ArrowUpFromLine },
+  { to: "/notifications", label: "Notifications", icon: Bell },
+  { to: "/profile", label: "Profile", icon: UserIcon },
   { to: "/settings", label: "Settings", icon: SettingsIcon },
 ];
 
