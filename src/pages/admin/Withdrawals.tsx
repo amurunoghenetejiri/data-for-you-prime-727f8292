@@ -21,20 +21,26 @@ export default function AdminWithdrawals() {
     },
   });
 
-  async function setStatus(w: any, status: "approved" | "rejected" | "completed") {
-    const { error } = await supabase.from("withdrawals").update({ status }).eq("id", w.id);
+  async function approve(w: any) {
+    const { error } = await supabase.rpc("approve_withdrawal", { _id: w.id });
     if (error) return toast.error(error.message);
-    await logAdminAction(supabase, `withdrawal_${status}`, "withdrawal", w.id, { amount: w.amount });
-    toast.success("Updated");
+    toast.success("Withdrawal approved");
+    refetch();
+  }
+  async function reject(w: any) {
+    const reason = window.prompt("Reason for rejection (optional)") || null;
+    const { error } = await supabase.rpc("reject_withdrawal", { _id: w.id, _reason: reason });
+    if (error) return toast.error(error.message);
+    toast.success("Withdrawal rejected; funds returned to user");
     refetch();
   }
 
   return (
     <div>
-      <PageHead title="Withdrawals" subtitle="Process user withdrawal requests" icon={ArrowUpFromLine}
+      <PageHead title="Withdrawals" subtitle="Approve or reject user withdrawal requests" icon={ArrowUpFromLine}
         actions={
           <select value={filter} onChange={(e) => setFilter(e.target.value)} className="h-10 px-3 rounded-lg bg-slate-800/60 border border-white/10 text-white text-sm">
-            <option value="pending">Pending</option><option value="approved">Approved</option><option value="completed">Completed</option><option value="rejected">Rejected</option><option value="all">All</option>
+            <option value="pending">Pending</option><option value="successful">Successful</option><option value="rejected">Rejected</option><option value="all">All</option>
           </select>
         } />
       <GlassCard className="overflow-hidden">
@@ -53,13 +59,12 @@ export default function AdminWithdrawals() {
                     <td className="px-4 py-3 font-mono text-xs">{maskAcct(w.account_number)}</td>
                     <td className="px-4 py-3"><StatusPill status={w.status} /></td>
                     <td className="px-4 py-3 text-right">
-                      {w.status === "pending" && (
+                      {(w.status === "pending" || w.status === "processing" || w.status === "approved") && (
                         <div className="flex justify-end gap-1">
-                          <button onClick={() => setStatus(w, "approved")} className="px-2 py-1 rounded bg-emerald-500/15 text-emerald-300 text-[11px] border border-emerald-500/30">Approve</button>
-                          <button onClick={() => setStatus(w, "rejected")} className="px-2 py-1 rounded bg-rose-500/15 text-rose-300 text-[11px] border border-rose-500/30">Reject</button>
+                          <button onClick={() => approve(w)} className="px-2 py-1 rounded bg-emerald-500/15 text-emerald-300 text-[11px] border border-emerald-500/30">Approve</button>
+                          <button onClick={() => reject(w)} className="px-2 py-1 rounded bg-rose-500/15 text-rose-300 text-[11px] border border-rose-500/30">Reject</button>
                         </div>
                       )}
-                      {w.status === "approved" && <button onClick={() => setStatus(w, "completed")} className="px-2 py-1 rounded bg-violet-500/15 text-violet-300 text-[11px] border border-violet-500/30">Mark paid</button>}
                     </td>
                   </tr>
                 ))}

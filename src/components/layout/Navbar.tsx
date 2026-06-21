@@ -16,13 +16,12 @@ import { useNavigate } from "react-router-dom";
 const navItems = [
   { to: "/", label: "Home" },
   { to: "/dashboard", label: "Dashboard" },
-  { to: "/buy-data", label: "Buy Data" },
+  { to: "/wallet", label: "Wallet" },
   { to: "/buy-airtime", label: "Buy Airtime" },
+  { to: "/buy-data", label: "Buy Data" },
   { to: "/cable", label: "Cable" },
   { to: "/electricity", label: "Electricity" },
   { to: "/transfer", label: "Transfer" },
-  { to: "/eth", label: "ETH" },
-  { to: "/wallet", label: "Wallet" },
   { to: "/transactions", label: "Transactions" },
 ];
 
