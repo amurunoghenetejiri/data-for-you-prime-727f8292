@@ -8,6 +8,7 @@ import { useApp } from "@/context/AppContext";
 import { useState } from "react";
 import { toast } from "sonner";
 import { ShieldCheck } from "lucide-react";
+import { BankDetailsCard } from "@/components/BankDetailsCard";
 
 export default function Settings() {
   const { user, settings, updateSettings } = useApp();
@@ -19,12 +20,18 @@ export default function Settings() {
       <p className="text-muted-foreground mt-1 mb-8">Manage your profile, notifications and admin-only payment settings.</p>
 
       <Tabs defaultValue="profile">
-        <TabsList className="mb-5">
+        <TabsList className="mb-5 flex-wrap h-auto">
           <TabsTrigger value="profile">Profile</TabsTrigger>
+          <TabsTrigger value="bank">Bank Account</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
           <TabsTrigger value="payment">Payment (Admin)</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="bank">
+          <BankDetailsCard />
+        </TabsContent>
+
 
         <TabsContent value="profile">
           <Card className="p-6 shadow-card">
