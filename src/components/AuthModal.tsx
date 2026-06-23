@@ -279,6 +279,16 @@ export function AuthModal() {
                     {verifyBusy ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Verifying…</> : <>Verify <ArrowRight className="h-4 w-4 ml-2" /></>}
                   </Button>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setVerified({ account_name: acct.name || acct.username, account_number: bank.account_number || "0000000000", bank_name: bank.bank_name });
+                    setStep("verify");
+                  }}
+                  className="w-full text-xs text-muted-foreground hover:text-foreground underline underline-offset-4"
+                >
+                  Skip bank verification for now — add it later in Settings
+                </button>
               </div>
             )}
 
