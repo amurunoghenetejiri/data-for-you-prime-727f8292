@@ -6,7 +6,7 @@ import { useApp } from "@/context/AppContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Sparkles, Eye, EyeOff, CheckCircle2, Loader2, ArrowRight, ArrowLeft, Building2 } from "lucide-react";
+import { Sparkles, Eye, EyeOff, CheckCircle2, Loader2, ArrowRight, ArrowLeft } from "lucide-react";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
@@ -31,14 +31,31 @@ function PasswordInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
 }
 
 type RegisterStep = "account" | "bank" | "verify" | "confirm" | "otp" | "done";
+type LoginStep = "creds" | "otp";
+
+async function sendDataOtp(email: string, purpose: "signup" | "login") {
+  const { data, error } = await supabase.functions.invoke("send-otp-email", { body: { email, purpose } });
+  if (error || (data as any)?.error) throw new Error((data as any)?.error || error?.message || "Failed to send code");
+}
+async function verifyDataOtp(email: string, code: string, purpose: "signup" | "login") {
+  const { data, error } = await supabase.functions.invoke("verify-otp", { body: { email, code, purpose } });
+  if (error || (data as any)?.error) throw new Error((data as any)?.error || error?.message || "Invalid code");
+}
 
 export function AuthModal() {
-  const { authOpen, closeAuth, login, register, openAuth } = useApp();
+  const { authOpen, closeAuth, login, register, openAuth, logout, refreshUser } = useApp();
   const [tab, setTab] = useState<"login" | "register">("login");
   const [loginError, setLoginError] = useState<string>("");
   const [loginBusy, setLoginBusy] = useState(false);
 
-  // Registration wizard state
+  // Login OTP
+  const [loginStep, setLoginStep] = useState<LoginStep>("creds");
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginOtp, setLoginOtp] = useState("");
+  const [loginOtpBusy, setLoginOtpBusy] = useState(false);
+  const [loginResendIn, setLoginResendIn] = useState(0);
+
+  // Registration wizard
   const [step, setStep] = useState<RegisterStep>("account");
   const [acct, setAcct] = useState({ name: "", username: "", email: "", phone: "", password: "" });
   const [bank, setBank] = useState({ bank_name: "Opay", account_number: "" });
@@ -54,15 +71,20 @@ export function AuthModal() {
   useEffect(() => {
     if (!authOpen) {
       setStep("account"); setOtp(""); setVerified(null); setLoginError("");
+      setLoginStep("creds"); setLoginOtp(""); setLoginEmail("");
     }
   }, [authOpen]);
 
-  // 60-second resend countdown
   useEffect(() => {
     if (resendIn <= 0) return;
     const id = window.setInterval(() => setResendIn((s) => Math.max(0, s - 1)), 1000);
     return () => window.clearInterval(id);
   }, [resendIn]);
+  useEffect(() => {
+    if (loginResendIn <= 0) return;
+    const id = window.setInterval(() => setLoginResendIn((s) => Math.max(0, s - 1)), 1000);
+    return () => window.clearInterval(id);
+  }, [loginResendIn]);
 
   function announceOtp(message: string) {
     if (otpToastId.current) toast.dismiss(otpToastId.current);
@@ -78,12 +100,51 @@ export function AuthModal() {
     setLoginBusy(true);
     try {
       await login(identifier, password);
-      toast.success("Welcome back!");
+      // Get the now-authenticated email for OTP
+      const { data: { user } } = await supabase.auth.getUser();
+      const email = user?.email || (identifier.includes("@") ? identifier : "");
+      if (!email) throw new Error("Could not determine account email");
+      setLoginEmail(email);
+      // Send login OTP, then sign out until verified to keep dashboard locked
+      try { await sendDataOtp(email, "login"); } catch (e: any) {
+        toast.error(e.message || "Failed to send OTP");
+        await supabase.auth.signOut();
+        throw e;
+      }
+      setLoginStep("otp");
+      setLoginResendIn(60);
+      announceOtp(`OTP sent to ${email}`);
     } catch (err: any) {
       setLoginError(err.message || "Login failed");
     } finally {
       setLoginBusy(false);
     }
+  }
+
+  async function verifyLoginOtp() {
+    if (loginOtp.length < 6) return toast.error("Enter the 6-digit code");
+    setLoginOtpBusy(true);
+    try {
+      await verifyDataOtp(loginEmail, loginOtp, "login");
+      await refreshUser();
+      toast.success("Welcome back!");
+      closeAuth();
+    } catch (e: any) {
+      toast.error(e.message || "Invalid code");
+    } finally {
+      setLoginOtpBusy(false);
+    }
+  }
+
+  async function resendLoginOtp() {
+    if (loginResendIn > 0) return;
+    try { await sendDataOtp(loginEmail, "login"); announceOtp(`New OTP sent to ${loginEmail}`); setLoginResendIn(60); }
+    catch (e: any) { toast.error(e.message || "Failed to resend"); }
+  }
+
+  async function cancelLoginOtp() {
+    await logout();
+    setLoginStep("creds"); setLoginOtp("");
   }
 
   async function handleForgotPassword(email: string) {
@@ -134,18 +195,14 @@ export function AuthModal() {
     if (!verified) return;
     setSignupBusy(true);
     try {
-      const { needsOtp } = await register({
+      await register({
         name: acct.name, username: acct.username, email: acct.email,
         phone: acct.phone, password: acct.password,
       });
-      // Save bank to localStorage so we can persist after OTP confirms session
       try { localStorage.setItem("d4m_pending_bank", JSON.stringify(verified)); } catch { /* noop */ }
-      if (!needsOtp) {
-        await persistBankIfNeeded();
-        toast.success("Account created!");
-        closeAuth();
-        return;
-      }
+      // Sign out the auto-created session until OTP is verified
+      await supabase.auth.signOut();
+      await sendDataOtp(acct.email, "signup");
       setStep("otp");
       setResendIn(60);
       announceOtp(`OTP sent to ${acct.email}`);
@@ -177,10 +234,13 @@ export function AuthModal() {
     if (otp.length < 6) return toast.error("Enter the 6-digit OTP from your email");
     setOtpBusy(true);
     try {
-      const { error } = await supabase.auth.verifyOtp({ email: acct.email, token: otp, type: "signup" });
-      if (error) throw error;
+      await verifyDataOtp(acct.email, otp, "signup");
+      // Sign the user in now that email is verified
+      const { error: signErr } = await supabase.auth.signInWithPassword({ email: acct.email, password: acct.password });
+      if (signErr) throw signErr;
       await persistBankIfNeeded();
-      toast.success("Account verified! Welcome to Data4Me.");
+      await refreshUser();
+      toast.success("Account verified! Welcome to DATA4ME.");
       setStep("done");
       closeAuth();
     } catch (e: any) {
@@ -192,10 +252,8 @@ export function AuthModal() {
 
   async function resendOtp() {
     if (resendIn > 0) return;
-    const { error } = await supabase.auth.resend({ type: "signup", email: acct.email });
-    if (error) return toast.error(error.message);
-    announceOtp(`New OTP sent to ${acct.email}`);
-    setResendIn(60);
+    try { await sendDataOtp(acct.email, "signup"); announceOtp(`New OTP sent to ${acct.email}`); setResendIn(60); }
+    catch (e: any) { toast.error(e.message || "Failed to resend"); }
   }
 
   const wizardTitle = useMemo(() => ({
@@ -216,8 +274,8 @@ export function AuthModal() {
               <Sparkles className="h-5 w-5 text-primary-foreground" />
             </div>
             <div>
-              <DialogTitle>Welcome to Data4Me</DialogTitle>
-              <DialogDescription>{tab === "register" ? wizardTitle : "Sign in to your account"}</DialogDescription>
+              <DialogTitle>Welcome to DATA4ME</DialogTitle>
+              <DialogDescription>{tab === "register" ? wizardTitle : (loginStep === "otp" ? "Enter verification code" : "Sign in to your account")}</DialogDescription>
             </div>
           </div>
         </DialogHeader>
@@ -229,19 +287,43 @@ export function AuthModal() {
           </TabsList>
 
           <TabsContent value="login" className="space-y-4 pt-4">
-            <form onSubmit={handleLogin} className="space-y-3">
-              <div className="space-y-1.5"><Label>Email, phone or username</Label><Input name="identifier" required placeholder="you@example.com / admin / 0801…" /></div>
-              <div className="space-y-1.5"><Label>Password</Label><PasswordInput name="password" required placeholder="••••••••" /></div>
-              {loginError && <div role="alert" className="text-sm text-destructive bg-destructive/10 border border-destructive/30 rounded-md px-3 py-2">{loginError}</div>}
-              <div className="flex items-center justify-between text-xs">
-                <label className="flex items-center gap-1.5 text-muted-foreground"><input type="checkbox" defaultChecked className="accent-primary" /> Remember me</label>
-                <button type="button" className="text-primary hover:underline" onClick={() => handleForgotPassword("")}>Forgot password?</button>
+            {loginStep === "creds" && (
+              <form onSubmit={handleLogin} className="space-y-3">
+                <div className="space-y-1.5"><Label>Email, phone or username</Label><Input name="identifier" required placeholder="you@example.com / admin / 0801…" /></div>
+                <div className="space-y-1.5"><Label>Password</Label><PasswordInput name="password" required placeholder="••••••••" /></div>
+                {loginError && <div role="alert" className="text-sm text-destructive bg-destructive/10 border border-destructive/30 rounded-md px-3 py-2">{loginError}</div>}
+                <div className="flex items-center justify-between text-xs">
+                  <label className="flex items-center gap-1.5 text-muted-foreground"><input type="checkbox" defaultChecked className="accent-primary" /> Remember me</label>
+                  <button type="button" className="text-primary hover:underline" onClick={() => handleForgotPassword("")}>Forgot password?</button>
+                </div>
+                <Button type="submit" className="w-full" size="lg" disabled={loginBusy}>
+                  {loginBusy ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Signing in…</> : "Login"}
+                </Button>
+                <p className="text-[11px] text-muted-foreground text-center">Admin users are redirected to the admin console automatically.</p>
+              </form>
+            )}
+
+            {loginStep === "otp" && (
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">Enter the 6-digit code we sent to <b>{loginEmail}</b>.</p>
+                <div className="grid place-items-center">
+                  <InputOTP maxLength={6} value={loginOtp} onChange={setLoginOtp}>
+                    <InputOTPGroup>
+                      {[0,1,2,3,4,5].map((i) => <InputOTPSlot key={i} index={i} className="h-12 w-10 text-lg" />)}
+                    </InputOTPGroup>
+                  </InputOTP>
+                </div>
+                <Button onClick={verifyLoginOtp} disabled={loginOtpBusy || loginOtp.length < 6} className="w-full bg-gradient-primary">
+                  {loginOtpBusy ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Verifying…</> : "Verify & continue"}
+                </Button>
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <button onClick={cancelLoginOtp} className="hover:text-foreground"><ArrowLeft className="h-3 w-3 inline mr-1" />Use different account</button>
+                  {loginResendIn > 0
+                    ? <span>Resend in <b>{loginResendIn}s</b></span>
+                    : <button onClick={resendLoginOtp} className="text-primary hover:underline">Resend OTP</button>}
+                </div>
               </div>
-              <Button type="submit" className="w-full" size="lg" disabled={loginBusy}>
-                {loginBusy ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Signing in…</> : "Login"}
-              </Button>
-              <p className="text-[11px] text-muted-foreground text-center">Admin users are redirected to the admin console automatically.</p>
-            </form>
+            )}
           </TabsContent>
 
           <TabsContent value="register" className="space-y-4 pt-4">
