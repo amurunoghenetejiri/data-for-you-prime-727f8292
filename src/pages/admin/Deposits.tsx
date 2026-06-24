@@ -36,7 +36,7 @@ export default function AdminDeposits() {
   async function reject(r: any) {
     const reason = prompt("Reason for rejection (shown to user):", "Receipt could not be verified.");
     if (reason === null) return;
-    const { error } = await supabase.from("funding_requests").update({ status: "rejected", reviewed_at: new Date().toISOString(), admin_note: reason }).eq("id", r.id);
+    const { error } = await supabase.from("funding_requests").update({ status: "rejected", reviewed_at: new Date().toISOString(), note: reason }).eq("id", r.id);
     if (error) return toast.error(error.message);
     await supabase.from("notifications").insert({ user_id: r.user_id, title: "Funding rejected", body: `Your ₦${Number(r.amount).toLocaleString()} funding request was rejected: ${reason}` });
     await logAdminAction(supabase, "reject_deposit", "funding_request", r.id, { reason });
