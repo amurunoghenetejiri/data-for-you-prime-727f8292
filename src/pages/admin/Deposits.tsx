@@ -34,11 +34,23 @@ export default function AdminDeposits() {
   }
 
   async function reject(r: any) {
-    if (!confirm("Reject this deposit?")) return;
-    const { error } = await supabase.from("funding_requests").update({ status: "rejected", reviewed_at: new Date().toISOString() }).eq("id", r.id);
+    const reason = prompt("Reason for rejection (shown to user):", "Receipt could not be verified.");
+    if (reason === null) return;
+    const { error } = await supabase.from("funding_requests").update({ status: "rejected", reviewed_at: new Date().toISOString(), note: reason }).eq("id", r.id);
     if (error) return toast.error(error.message);
-    await logAdminAction(supabase, "reject_deposit", "funding_request", r.id, {});
-    toast.info("Rejected");
+    await supabase.from("notifications").insert({ user_id: r.user_id, title: "Funding rejected", body: `Your ₦${Number(r.amount).toLocaleString()} funding request was rejected: ${reason}` });
+    await logAdminAction(supabase, "reject_deposit", "funding_request", r.id, { reason });
+    toast.info("Rejected and user notified");
+    refetch();
+  }
+
+  async function cancel(r: any) {
+    if (!confirm("Cancel this deposit request?")) return;
+    const { error } = await supabase.from("funding_requests").update({ status: "cancelled", reviewed_at: new Date().toISOString() }).eq("id", r.id);
+    if (error) return toast.error(error.message);
+    await supabase.from("notifications").insert({ user_id: r.user_id, title: "Funding cancelled", body: `Your ₦${Number(r.amount).toLocaleString()} funding request was cancelled by admin.` });
+    await logAdminAction(supabase, "cancel_deposit", "funding_request", r.id, {});
+    toast.info("Cancelled");
     refetch();
   }
 
@@ -71,7 +83,8 @@ export default function AdminDeposits() {
                       {r.status === "pending" && (
                         <div className="flex justify-end gap-1">
                           <button onClick={() => approve(r)} className="px-2.5 py-1.5 rounded-lg bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 text-xs font-medium flex items-center gap-1"><Check className="h-3.5 w-3.5" /> Approve</button>
-                          <button onClick={() => reject(r)} className="px-2.5 py-1.5 rounded-lg bg-rose-500/15 text-rose-300 border border-rose-500/30 text-xs font-medium"><X className="h-3.5 w-3.5" /></button>
+                          <button onClick={() => reject(r)} title="Reject" className="px-2.5 py-1.5 rounded-lg bg-rose-500/15 text-rose-300 border border-rose-500/30 text-xs font-medium"><X className="h-3.5 w-3.5" /></button>
+                          <button onClick={() => cancel(r)} title="Cancel" className="px-2.5 py-1.5 rounded-lg bg-slate-500/15 text-slate-300 border border-slate-500/30 text-xs font-medium">Cancel</button>
                         </div>
                       )}
                     </td>

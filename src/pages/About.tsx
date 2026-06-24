@@ -8,8 +8,12 @@ export default function About() {
       <div className="max-w-3xl">
         <span className="text-xs uppercase tracking-widest text-primary font-semibold">About us</span>
         <h1 className="text-4xl md:text-5xl font-bold mt-2">Welcome to our platform.</h1>
-        <p className="text-lg text-muted-foreground mt-4">This platform was created and developed by <span className="font-semibold text-foreground">Destiny</span>. Our mission is to provide affordable data subscriptions, airtime services, and seamless wallet funding for all users.</p>
-        <p className="text-lg text-muted-foreground mt-3">Thank you for choosing our services.</p>
+        <p className="text-lg text-muted-foreground mt-4">DATA4ME is a product of <span className="font-semibold text-foreground">DEST-GLOBAL LIMITED</span>. Our mission is to provide affordable data subscriptions, airtime services, and seamless wallet funding for all users across Nigeria — starting from Delta State and serving every state nationwide.</p>
+        <p className="text-lg text-muted-foreground mt-3">Thank you for choosing DATA4ME.</p>
+        <div className="mt-6 p-5 rounded-2xl bg-accent/40 border border-border">
+          <p className="text-xs uppercase tracking-widest text-primary font-semibold mb-2">Coverage</p>
+          <p className="text-sm text-muted-foreground">We serve customers in <span className="font-semibold text-foreground">Delta State</span> first, and across all other Nigerian states: Abia, Adamawa, Akwa Ibom, Anambra, Bauchi, Bayelsa, Benue, Borno, Cross River, Ebonyi, Edo, Ekiti, Enugu, FCT (Abuja), Gombe, Imo, Jigawa, Kaduna, Kano, Katsina, Kebbi, Kogi, Kwara, Lagos, Nasarawa, Niger, Ogun, Ondo, Osun, Oyo, Plateau, Rivers, Sokoto, Taraba, Yobe and Zamfara.</p>
+        </div>
       </div>
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-10">

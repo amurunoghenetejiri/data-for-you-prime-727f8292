@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_bank_accounts: {
+        Row: {
+          account_name: string
+          account_number: string
+          bank_name: string
+          created_at: string
+          id: string
+          is_active: boolean
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          account_name: string
+          account_number: string
+          bank_name: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          account_name?: string
+          account_number?: string
+          bank_name?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       admin_messages: {
         Row: {
           admin_id: string
@@ -235,6 +268,96 @@ export type Database = {
         }
         Relationships: []
       }
+      data_plans: {
+        Row: {
+          category: string | null
+          cost_price: number
+          created_at: string
+          id: string
+          is_active: boolean
+          network: string
+          plan_id: string
+          plan_name: string
+          selling_price: number
+          updated_at: string
+          validity: string | null
+        }
+        Insert: {
+          category?: string | null
+          cost_price?: number
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          network: string
+          plan_id: string
+          plan_name: string
+          selling_price?: number
+          updated_at?: string
+          validity?: string | null
+        }
+        Update: {
+          category?: string | null
+          cost_price?: number
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          network?: string
+          plan_id?: string
+          plan_name?: string
+          selling_price?: number
+          updated_at?: string
+          validity?: string | null
+        }
+        Relationships: []
+      }
+      email_logs: {
+        Row: {
+          created_at: string
+          error: string | null
+          id: string
+          recipient: string
+          status: string
+          subject: string
+          template: string | null
+        }
+        Insert: {
+          created_at?: string
+          error?: string | null
+          id?: string
+          recipient: string
+          status?: string
+          subject: string
+          template?: string | null
+        }
+        Update: {
+          created_at?: string
+          error?: string | null
+          id?: string
+          recipient?: string
+          status?: string
+          subject?: string
+          template?: string | null
+        }
+        Relationships: []
+      }
+      fee_settings: {
+        Row: {
+          key: string
+          percent: number
+          updated_at: string
+        }
+        Insert: {
+          key: string
+          percent?: number
+          updated_at?: string
+        }
+        Update: {
+          key?: string
+          percent?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       funding_requests: {
         Row: {
           amount: number
@@ -450,6 +573,39 @@ export type Database = {
           reference?: string
           status?: string
           type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_bank_accounts: {
+        Row: {
+          account_name: string
+          account_number: string
+          bank_name: string
+          created_at: string
+          id: string
+          is_default: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_name: string
+          account_number: string
+          bank_name: string
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_name?: string
+          account_number?: string
+          bank_name?: string
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          updated_at?: string
           user_id?: string
         }
         Relationships: []
