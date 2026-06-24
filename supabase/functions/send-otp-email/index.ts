@@ -1,6 +1,5 @@
-// DATA4ME branded OTP email — generates code, stores hash, emails via SMTP
+// DATA4ME branded OTP email via SMTP (e.g. Gmail)
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
-import { createClient } from 'npm:@supabase/supabase-js@2';
 import { SMTPClient } from 'npm:emailjs@4.0.3';
 
 const SMTP_HOST = Deno.env.get('SMTP_HOST') || '';
@@ -10,25 +9,12 @@ const SMTP_PASSWORD = Deno.env.get('SMTP_PASSWORD') || '';
 const FROM_EMAIL = Deno.env.get('SMTP_FROM_EMAIL') || SMTP_USER;
 const FROM_NAME = Deno.env.get('SMTP_FROM_NAME') || 'DATA4ME';
 
-const admin = createClient(
-  Deno.env.get('SUPABASE_URL')!,
-  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-  { auth: { persistSession: false } },
-);
-
-async function sha256(text: string) {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
-  return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('');
-}
-
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   try {
-    const body = await req.json().catch(() => ({}));
-    const email = String(body.email || '').trim().toLowerCase();
-    const purpose = String(body.purpose || 'signup');
-    if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
-      return new Response(JSON.stringify({ error: 'Valid email required' }), {
+    const { email, code } = await req.json();
+    if (!email || !code || String(code).length !== 6) {
+      return new Response(JSON.stringify({ error: 'email and 6-digit code required' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
@@ -38,31 +24,16 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Rate-limit: max 1 request / 30s per email
-    const since = new Date(Date.now() - 30_000).toISOString();
-    const { count } = await admin.from('otp_codes').select('id', { count: 'exact', head: true })
-      .eq('email', email).gte('created_at', since);
-    if ((count ?? 0) > 0) {
-      return new Response(JSON.stringify({ error: 'Please wait before requesting another code' }), {
-        status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    const code = String(Math.floor(100000 + Math.random() * 900000));
-    const code_hash = await sha256(`${email}:${code}`);
-    const expires_at = new Date(Date.now() + 10 * 60_000).toISOString();
-
-    const { error: insErr } = await admin.from('otp_codes').insert({
-      email, code_hash, purpose, expires_at,
-    });
-    if (insErr) throw insErr;
-
     const client = new SMTPClient({
-      user: SMTP_USER, password: SMTP_PASSWORD, host: SMTP_HOST, port: SMTP_PORT,
-      ssl: SMTP_PORT === 465, tls: SMTP_PORT !== 465,
+      user: SMTP_USER,
+      password: SMTP_PASSWORD,
+      host: SMTP_HOST,
+      port: SMTP_PORT,
+      ssl: SMTP_PORT === 465,
+      tls: SMTP_PORT !== 465,
     });
 
-    const text = `DATA4ME Verification Code\n\nYour verification code is:\n\n${code}\n\nThis code expires in 10 minutes.\n\nIf you didn't request this, ignore this email.`;
+    const text = `DATA4ME Verification Code\n\nYour verification code is:\n\n${code}\n\nThis code expires in 10 minutes.`;
     const html = `<!doctype html><html><body style="font-family:Arial,sans-serif;background:#ffffff;padding:32px;color:#0f172a">
       <div style="max-width:480px;margin:auto;border:1px solid #e2e8f0;border-radius:16px;padding:32px;text-align:center">
         <h1 style="margin:0 0 8px;color:#7c3aed">DATA4ME</h1>
@@ -80,12 +51,7 @@ Deno.serve(async (req) => {
       attachment: [{ data: html, alternative: true }],
     });
 
-    // Best-effort log
-    await admin.from('email_logs').insert({
-      recipient: email, subject: 'DATA4ME verification code', status: 'sent', purpose,
-    }).then(() => {}, () => {});
-
-    return new Response(JSON.stringify({ success: true, expires_at }), {
+    return new Response(JSON.stringify({ success: true }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (e) {
