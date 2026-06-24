@@ -34,11 +34,23 @@ export default function AdminDeposits() {
   }
 
   async function reject(r: any) {
-    if (!confirm("Reject this deposit?")) return;
-    const { error } = await supabase.from("funding_requests").update({ status: "rejected", reviewed_at: new Date().toISOString() }).eq("id", r.id);
+    const reason = prompt("Reason for rejection (shown to user):", "Receipt could not be verified.");
+    if (reason === null) return;
+    const { error } = await supabase.from("funding_requests").update({ status: "rejected", reviewed_at: new Date().toISOString(), admin_note: reason }).eq("id", r.id);
     if (error) return toast.error(error.message);
-    await logAdminAction(supabase, "reject_deposit", "funding_request", r.id, {});
-    toast.info("Rejected");
+    await supabase.from("notifications").insert({ user_id: r.user_id, title: "Funding rejected", body: `Your ₦${Number(r.amount).toLocaleString()} funding request was rejected: ${reason}` });
+    await logAdminAction(supabase, "reject_deposit", "funding_request", r.id, { reason });
+    toast.info("Rejected and user notified");
+    refetch();
+  }
+
+  async function cancel(r: any) {
+    if (!confirm("Cancel this deposit request?")) return;
+    const { error } = await supabase.from("funding_requests").update({ status: "cancelled", reviewed_at: new Date().toISOString() }).eq("id", r.id);
+    if (error) return toast.error(error.message);
+    await supabase.from("notifications").insert({ user_id: r.user_id, title: "Funding cancelled", body: `Your ₦${Number(r.amount).toLocaleString()} funding request was cancelled by admin.` });
+    await logAdminAction(supabase, "cancel_deposit", "funding_request", r.id, {});
+    toast.info("Cancelled");
     refetch();
   }
 
