@@ -1,10 +1,10 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { dataPlans, networks, NetworkId, DataPlan, categories, PlanCategory } from "@/lib/data";
+import { dataPlans as staticPlans, networks, NetworkId, DataPlan, categories, PlanCategory } from "@/lib/data";
 import { NetworkBadge } from "@/components/NetworkBadge";
 import { useApp } from "@/context/AppContext";
 import { toast } from "sonner";
@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { PinDialog } from "@/components/PinDialog";
 import { ReceiptDialog } from "@/components/ReceiptDialog";
 import { Transaction } from "@/lib/data";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function BuyData() {
   const { user, openAuth, wallet, deductWallet, addTransaction, settings, pushNotification } = useApp();
