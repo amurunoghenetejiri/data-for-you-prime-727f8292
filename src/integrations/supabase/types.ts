@@ -197,6 +197,42 @@ export type Database = {
         }
         Relationships: []
       }
+      bank_verification_logs: {
+        Row: {
+          account_name: string | null
+          account_number: string | null
+          bank_code: string | null
+          bank_name: string | null
+          created_at: string
+          error_message: string | null
+          id: string
+          success: boolean
+          user_id: string | null
+        }
+        Insert: {
+          account_name?: string | null
+          account_number?: string | null
+          bank_code?: string | null
+          bank_name?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          success: boolean
+          user_id?: string | null
+        }
+        Update: {
+          account_name?: string | null
+          account_number?: string | null
+          bank_code?: string | null
+          bank_name?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          success?: boolean
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       chat_messages: {
         Row: {
           avatar_id: string | null
@@ -268,17 +304,56 @@ export type Database = {
         }
         Relationships: []
       }
+      data_plan_audit: {
+        Row: {
+          action: string
+          admin_email: string | null
+          admin_id: string | null
+          after_data: Json | null
+          before_data: Json | null
+          created_at: string
+          id: string
+          plan_id: string | null
+        }
+        Insert: {
+          action: string
+          admin_email?: string | null
+          admin_id?: string | null
+          after_data?: Json | null
+          before_data?: Json | null
+          created_at?: string
+          id?: string
+          plan_id?: string | null
+        }
+        Update: {
+          action?: string
+          admin_email?: string | null
+          admin_id?: string | null
+          after_data?: Json | null
+          before_data?: Json | null
+          created_at?: string
+          id?: string
+          plan_id?: string | null
+        }
+        Relationships: []
+      }
       data_plans: {
         Row: {
           category: string | null
           cost_price: number
           created_at: string
+          data_size: string | null
+          description: string | null
+          discount_percent: number
+          duration: string | null
           id: string
           is_active: boolean
+          is_promo: boolean
           network: string
           plan_id: string
           plan_name: string
           selling_price: number
+          service_fee_percent: number
           updated_at: string
           validity: string | null
         }
@@ -286,12 +361,18 @@ export type Database = {
           category?: string | null
           cost_price?: number
           created_at?: string
+          data_size?: string | null
+          description?: string | null
+          discount_percent?: number
+          duration?: string | null
           id?: string
           is_active?: boolean
+          is_promo?: boolean
           network: string
           plan_id: string
           plan_name: string
           selling_price?: number
+          service_fee_percent?: number
           updated_at?: string
           validity?: string | null
         }
@@ -299,12 +380,18 @@ export type Database = {
           category?: string | null
           cost_price?: number
           created_at?: string
+          data_size?: string | null
+          description?: string | null
+          discount_percent?: number
+          duration?: string | null
           id?: string
           is_active?: boolean
+          is_promo?: boolean
           network?: string
           plan_id?: string
           plan_name?: string
           selling_price?: number
+          service_fee_percent?: number
           updated_at?: string
           validity?: string | null
         }

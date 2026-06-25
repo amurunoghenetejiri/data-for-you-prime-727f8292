@@ -37,6 +37,7 @@ import AdminTransactions from "./pages/admin/Transactions";
 import AdminDeposits from "./pages/admin/Deposits";
 import AdminWithdrawals from "./pages/admin/Withdrawals";
 import AdminProducts from "./pages/admin/Products";
+import AdminDataPlans from "./pages/admin/DataPlans";
 import AdminAuditLogs from "./pages/admin/AuditLogs";
 import AdminSettings from "./pages/admin/Settings";
 import AdminBroadcast from "./pages/admin/Notifications";
@@ -61,6 +62,7 @@ const App = () => (
               <Route path="withdrawals" element={<AdminWithdrawals />} />
               <Route path="kyc" element={<KycPage />} />
               <Route path="products" element={<AdminProducts />} />
+              <Route path="data-plans" element={<AdminDataPlans />} />
               <Route path="reports" element={<ReportsPage />} />
               <Route path="notifications" element={<AdminBroadcast />} />
               <Route path="settings" element={<AdminSettings />} />
