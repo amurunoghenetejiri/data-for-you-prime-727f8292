@@ -32,7 +32,9 @@ export function BankDetailsCard() {
     setVerifying(true);
     try {
       const { data, error } = await supabase.functions.invoke("paystack-resolve", { body: { account_number: bank.account_number, bank_name: bank.bank_name } });
-      if (error || !data?.account_name) throw new Error((data as any)?.error || error?.message || "Could not verify");
+      if (error) throw new Error(error.message || "Could not reach verification service");
+      if ((data as any)?.error) throw new Error((data as any).error);
+      if (!data?.account_name) throw new Error("Account could not be verified");
       setBank({ ...bank, account_name: data.account_name });
       setVerified(true);
       toast.success(`Verified: ${data.account_name}`);
