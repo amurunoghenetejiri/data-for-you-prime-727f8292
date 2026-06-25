@@ -19,6 +19,7 @@ const nav = [
   { to: "/admin/withdrawals", label: "Withdrawals", icon: ArrowUpFromLine },
   { to: "/admin/kyc", label: "KYC", icon: BadgeCheck },
   { to: "/admin/products", label: "Product Management", icon: Package },
+  { to: "/admin/data-plans", label: "Data Plans Management", icon: Wifi },
   { to: "/admin/reports", label: "Reports", icon: BarChart3 },
   { to: "/admin/notifications", label: "Notifications", icon: Bell },
   { to: "/admin/settings", label: "System Settings", icon: Settings },
