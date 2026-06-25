@@ -62,6 +62,7 @@ const App = () => (
               <Route path="withdrawals" element={<AdminWithdrawals />} />
               <Route path="kyc" element={<KycPage />} />
               <Route path="products" element={<AdminProducts />} />
+              <Route path="data-plans" element={<AdminDataPlans />} />
               <Route path="reports" element={<ReportsPage />} />
               <Route path="notifications" element={<AdminBroadcast />} />
               <Route path="settings" element={<AdminSettings />} />
