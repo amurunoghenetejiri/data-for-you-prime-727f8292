@@ -27,11 +27,39 @@ export default function BuyData() {
   const [pinOpen, setPinOpen] = useState(false);
   const [receipt, setReceipt] = useState<Transaction | null>(null);
 
-  const plans = useMemo(() => dataPlans.filter((p) =>
+  const [livePlans, setLivePlans] = useState<DataPlan[] | null>(null);
+
+  useEffect(() => {
+    supabase.from("data_plans").select("*").eq("is_active", true).then(({ data }) => {
+      if (!data || data.length === 0) { setLivePlans(null); return; }
+      const mapped: DataPlan[] = data.map((p: any) => {
+        const price = Number(p.selling_price);
+        const discount = Number(p.discount_percent) || 0;
+        const originalPrice = discount > 0 ? Math.round(price / (1 - discount / 100)) : price;
+        return {
+          id: p.id,
+          network: p.network as NetworkId,
+          size: p.data_size || p.plan_name,
+          validity: p.duration || p.validity || "",
+          price,
+          originalPrice,
+          discount,
+          cashback: Math.round(price * 0.04),
+          category: (p.category || "monthly") as PlanCategory,
+          type: "SME",
+          popular: !!p.is_promo,
+        };
+      });
+      setLivePlans(mapped);
+    });
+  }, []);
+
+  const allPlans = livePlans ?? staticPlans;
+  const plans = useMemo(() => allPlans.filter((p) =>
     p.network === network &&
     p.category === cat &&
     (query === "" || p.size.toLowerCase().includes(query.toLowerCase())),
-  ), [network, cat, query]);
+  ), [allPlans, network, cat, query]);
 
   function start(p: DataPlan) {
     if (!user) { openAuth("login"); return; }
