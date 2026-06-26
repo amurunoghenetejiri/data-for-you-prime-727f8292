@@ -180,8 +180,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       // Defer to avoid deadlocks inside the listener
       setTimeout(() => hydrateForSession(session), 0);
       if (event === "SIGNED_IN" && session) {
-        // log login activity (best-effort)
         supabase.from("login_activity").insert({ user_id: session.user.id, event: "login", user_agent: navigator.userAgent });
+        supabase.rpc("log_activity", { _event: "User signed in", _category: "auth", _details: { ua: navigator.userAgent } as any });
       }
     });
     return () => sub.subscription.unsubscribe();
@@ -239,6 +239,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     logout: async () => {
       if (user?.id) {
         await supabase.from("login_activity").insert({ user_id: user.id, event: "logout", user_agent: navigator.userAgent });
+        await supabase.rpc("log_activity", { _event: "User signed out", _category: "auth", _details: {} as any });
       }
       await supabase.auth.signOut();
     },
