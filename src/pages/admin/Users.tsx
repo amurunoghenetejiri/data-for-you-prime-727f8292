@@ -76,7 +76,9 @@ export default function AdminUsers() {
           <select value={filter} onChange={(e) => setFilter(e.target.value as any)} className="h-10 px-3 rounded-lg bg-slate-800/60 border border-white/10 text-sm text-white">
             <option value="all">All statuses</option>
             <option value="active">Active</option>
+            <option value="suspended">Suspended</option>
             <option value="blocked">Blocked</option>
+            <option value="disabled">Disabled</option>
           </select>
         </div>
       </GlassCard>
@@ -109,7 +111,15 @@ export default function AdminUsers() {
                     <td className="px-4 py-3 hidden md:table-cell text-xs text-slate-400">{new Date(u.created_at).toLocaleDateString()}</td>
                     <td className="px-4 py-3 hidden lg:table-cell text-xs text-slate-400">{u.last_login ? new Date(u.last_login).toLocaleString() : "—"}</td>
                     <td className="px-4 py-3"><StatusPill status={u.status} /></td>
-                    <td className="px-4 py-3 text-right"><Link to={`/admin/users/${u.id}`} className="px-3 py-1.5 rounded-lg bg-violet-600/20 hover:bg-violet-600/30 border border-violet-500/30 text-violet-200 text-xs font-medium">Manage</Link></td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="inline-flex gap-1 flex-wrap justify-end">
+                        {u.status !== "active" && <button onClick={() => setStatus(u.id, "active")} title="Reactivate" className="h-7 w-7 grid place-items-center rounded-md bg-emerald-500/15 text-emerald-200 border border-emerald-500/30"><ShieldCheck className="h-3.5 w-3.5" /></button>}
+                        {u.status !== "suspended" && <button onClick={() => setStatus(u.id, "suspended")} title="Suspend" className="h-7 w-7 grid place-items-center rounded-md bg-amber-500/15 text-amber-200 border border-amber-500/30"><Clock className="h-3.5 w-3.5" /></button>}
+                        {u.status !== "blocked" && <button onClick={() => setStatus(u.id, "blocked")} title="Block" className="h-7 w-7 grid place-items-center rounded-md bg-rose-500/15 text-rose-200 border border-rose-500/30"><Ban className="h-3.5 w-3.5" /></button>}
+                        {u.status !== "disabled" && <button onClick={() => setStatus(u.id, "disabled")} title="Disable" className="h-7 w-7 grid place-items-center rounded-md bg-slate-500/15 text-slate-200 border border-slate-500/30"><ShieldOff className="h-3.5 w-3.5" /></button>}
+                        <Link to={`/admin/users/${u.id}`} className="px-2.5 py-1 rounded-md bg-violet-600/20 hover:bg-violet-600/30 border border-violet-500/30 text-violet-200 text-xs font-medium">Manage</Link>
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
