@@ -14,36 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      activity_logs: {
-        Row: {
-          category: string
-          created_at: string
-          details: Json | null
-          event: string
-          id: string
-          user_email: string | null
-          user_id: string | null
-        }
-        Insert: {
-          category?: string
-          created_at?: string
-          details?: Json | null
-          event: string
-          id?: string
-          user_email?: string | null
-          user_id?: string | null
-        }
-        Update: {
-          category?: string
-          created_at?: string
-          details?: Json | null
-          event?: string
-          id?: string
-          user_email?: string | null
-          user_id?: string | null
-        }
-        Relationships: []
-      }
       admin_bank_accounts: {
         Row: {
           account_name: string
@@ -477,7 +447,6 @@ export type Database = {
       }
       funding_requests: {
         Row: {
-          admin_remark: string | null
           amount: number
           bank: string | null
           created_at: string
@@ -487,12 +456,10 @@ export type Database = {
           receipt_url: string | null
           reference: string
           reviewed_at: string | null
-          reviewer_id: string | null
           status: string
           user_id: string
         }
         Insert: {
-          admin_remark?: string | null
           amount: number
           bank?: string | null
           created_at?: string
@@ -502,12 +469,10 @@ export type Database = {
           receipt_url?: string | null
           reference: string
           reviewed_at?: string | null
-          reviewer_id?: string | null
           status?: string
           user_id: string
         }
         Update: {
-          admin_remark?: string | null
           amount?: number
           bank?: string | null
           created_at?: string
@@ -517,7 +482,6 @@ export type Database = {
           receipt_url?: string | null
           reference?: string
           reviewed_at?: string | null
-          reviewer_id?: string | null
           status?: string
           user_id?: string
         }
@@ -791,8 +755,6 @@ export type Database = {
           blocked_by: string | null
           is_blocked: boolean
           is_verified: boolean
-          status: string
-          suspended_until: string | null
           updated_at: string
           user_id: string
         }
@@ -802,8 +764,6 @@ export type Database = {
           blocked_by?: string | null
           is_blocked?: boolean
           is_verified?: boolean
-          status?: string
-          suspended_until?: string | null
           updated_at?: string
           user_id: string
         }
@@ -813,8 +773,6 @@ export type Database = {
           blocked_by?: string | null
           is_blocked?: boolean
           is_verified?: boolean
-          status?: string
-          suspended_until?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -876,15 +834,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      approve_funding: {
-        Args: { _id: string; _remark?: string }
-        Returns: undefined
-      }
       approve_withdrawal: { Args: { _id: string }; Returns: undefined }
-      cancel_funding: {
-        Args: { _id: string; _remark?: string }
-        Returns: undefined
-      }
       credit_wallet: {
         Args: {
           _amount: number
@@ -927,10 +877,6 @@ export type Database = {
         }
         Returns: boolean
       }
-      log_activity: {
-        Args: { _category: string; _details: Json; _event: string }
-        Returns: undefined
-      }
       log_admin_action: {
         Args: {
           _action: string
@@ -940,21 +886,8 @@ export type Database = {
         }
         Returns: undefined
       }
-      reject_funding: {
-        Args: { _id: string; _remark?: string }
-        Returns: undefined
-      }
       reject_withdrawal: {
         Args: { _id: string; _reason?: string }
-        Returns: undefined
-      }
-      set_user_status: {
-        Args: {
-          _reason?: string
-          _status: string
-          _suspended_until?: string
-          _user_id: string
-        }
         Returns: undefined
       }
     }

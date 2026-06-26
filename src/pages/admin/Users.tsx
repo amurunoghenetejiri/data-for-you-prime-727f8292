@@ -1,36 +1,16 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Users as UsersIcon, Search, Inbox, Ban, ShieldCheck, Clock, ShieldOff } from "lucide-react";
+import { Users as UsersIcon, Search, Inbox } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { toast } from "sonner";
 import { EmptyBlock, ErrorBlock, GlassCard, LoadingBlock, PageHead, StatusPill, fmtNaira } from "./_shared";
 
 const PAGE = 20;
 
 export default function AdminUsers() {
-  const qc = useQueryClient();
   const [q, setQ] = useState("");
   const [page, setPage] = useState(0);
-  const [filter, setFilter] = useState<"all" | "active" | "suspended" | "blocked" | "disabled">("all");
-
-  async function setStatus(user_id: string, status: string) {
-    let reason: string | null = null;
-    let until: string | null = null;
-    if (status !== "active") {
-      reason = prompt(`Reason for ${status} (shown to user):`, "");
-      if (reason === null) return;
-    }
-    if (status === "suspended") {
-      const days = prompt("Suspend for how many days? (leave blank for indefinite)", "7");
-      if (days === null) return;
-      if (days.trim()) until = new Date(Date.now() + Number(days) * 86400000).toISOString();
-    }
-    const { error } = await supabase.rpc("set_user_status", { _user_id: user_id, _status: status, _reason: reason, _suspended_until: until });
-    if (error) return toast.error(error.message);
-    toast.success(`User ${status}`);
-    qc.invalidateQueries({ queryKey: ["admin", "users"] });
-  }
+  const [filter, setFilter] = useState<"all" | "active" | "blocked">("all");
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["admin", "users", q, page, filter],
@@ -52,7 +32,7 @@ export default function AdminUsers() {
       const merged = (rows || []).map((r: any) => ({
         ...r,
         balance: wMap.get(r.id) || 0,
-        status: sMap.get(r.id)?.status || (sMap.get(r.id)?.is_blocked ? "blocked" : "active"),
+        status: sMap.get(r.id)?.is_blocked ? "blocked" : "active",
         verified: !!sMap.get(r.id)?.is_verified,
         last_login: lMap.get(r.id) || null,
       }));
@@ -76,9 +56,7 @@ export default function AdminUsers() {
           <select value={filter} onChange={(e) => setFilter(e.target.value as any)} className="h-10 px-3 rounded-lg bg-slate-800/60 border border-white/10 text-sm text-white">
             <option value="all">All statuses</option>
             <option value="active">Active</option>
-            <option value="suspended">Suspended</option>
             <option value="blocked">Blocked</option>
-            <option value="disabled">Disabled</option>
           </select>
         </div>
       </GlassCard>
@@ -111,15 +89,7 @@ export default function AdminUsers() {
                     <td className="px-4 py-3 hidden md:table-cell text-xs text-slate-400">{new Date(u.created_at).toLocaleDateString()}</td>
                     <td className="px-4 py-3 hidden lg:table-cell text-xs text-slate-400">{u.last_login ? new Date(u.last_login).toLocaleString() : "—"}</td>
                     <td className="px-4 py-3"><StatusPill status={u.status} /></td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="inline-flex gap-1 flex-wrap justify-end">
-                        {u.status !== "active" && <button onClick={() => setStatus(u.id, "active")} title="Reactivate" className="h-7 w-7 grid place-items-center rounded-md bg-emerald-500/15 text-emerald-200 border border-emerald-500/30"><ShieldCheck className="h-3.5 w-3.5" /></button>}
-                        {u.status !== "suspended" && <button onClick={() => setStatus(u.id, "suspended")} title="Suspend" className="h-7 w-7 grid place-items-center rounded-md bg-amber-500/15 text-amber-200 border border-amber-500/30"><Clock className="h-3.5 w-3.5" /></button>}
-                        {u.status !== "blocked" && <button onClick={() => setStatus(u.id, "blocked")} title="Block" className="h-7 w-7 grid place-items-center rounded-md bg-rose-500/15 text-rose-200 border border-rose-500/30"><Ban className="h-3.5 w-3.5" /></button>}
-                        {u.status !== "disabled" && <button onClick={() => setStatus(u.id, "disabled")} title="Disable" className="h-7 w-7 grid place-items-center rounded-md bg-slate-500/15 text-slate-200 border border-slate-500/30"><ShieldOff className="h-3.5 w-3.5" /></button>}
-                        <Link to={`/admin/users/${u.id}`} className="px-2.5 py-1 rounded-md bg-violet-600/20 hover:bg-violet-600/30 border border-violet-500/30 text-violet-200 text-xs font-medium">Manage</Link>
-                      </div>
-                    </td>
+                    <td className="px-4 py-3 text-right"><Link to={`/admin/users/${u.id}`} className="px-3 py-1.5 rounded-lg bg-violet-600/20 hover:bg-violet-600/30 border border-violet-500/30 text-violet-200 text-xs font-medium">Manage</Link></td>
                   </tr>
                 ))}
               </tbody>

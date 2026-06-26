@@ -42,9 +42,6 @@ import AdminAuditLogs from "./pages/admin/AuditLogs";
 import AdminSettings from "./pages/admin/Settings";
 import AdminBroadcast from "./pages/admin/Notifications";
 import { KycPage, ReportsPage, AdminAccountsPage, SecurityPage, SupportPage, DatabasePage } from "./pages/admin/Misc";
-import AdminLiveActivity from "./pages/admin/LiveActivity";
-import AdminApprovalCenter from "./pages/admin/ApprovalCenter";
-import AdminBlockedUsers from "./pages/admin/BlockedUsers";
 
 const queryClient = new QueryClient();
 
@@ -58,9 +55,6 @@ const App = () => (
           <Routes>
             <Route path="/admin" element={<AdminLayout />}>
               <Route index element={<AdminDashboard />} />
-              <Route path="live" element={<AdminLiveActivity />} />
-              <Route path="approvals" element={<AdminApprovalCenter />} />
-              <Route path="blocked" element={<AdminBlockedUsers />} />
               <Route path="users" element={<AdminUsers />} />
               <Route path="users/:id" element={<AdminUserDetail />} />
               <Route path="transactions" element={<AdminTransactions />} />
