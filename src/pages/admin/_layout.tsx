@@ -2,29 +2,33 @@ import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  LayoutDashboard, Users, Receipt, ArrowDownToLine, ArrowUpFromLine, BadgeCheck,
+  LayoutDashboard, Users, Receipt, ArrowUpFromLine, BadgeCheck,
   Package, BarChart3, Bell, Settings, ShieldCheck, FileClock, Lock, LifeBuoy,
-  Database, LogOut, Menu, X, Sparkles, Wifi
+  Database, LogOut, Menu, X, Sparkles, Wifi, Activity, Ban
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import { AdminNotificationBell } from "@/components/admin/NotificationBell";
 
 const nav = [
   { to: "/admin", label: "Dashboard", icon: LayoutDashboard, end: true },
-  { to: "/admin/users", label: "User Management", icon: Users },
-  { to: "/admin/transactions", label: "Transactions", icon: Receipt },
-  { to: "/admin/deposits", label: "Deposits", icon: ArrowDownToLine },
+  { to: "/admin/live", label: "Live Activity Feed", icon: Activity },
+  { to: "/admin/notifications", label: "Notifications", icon: Bell },
+  { to: "/admin/approvals", label: "Approval Center", icon: BadgeCheck },
+  { to: "/admin/deposits", label: "Receipt Management", icon: Receipt },
+  { to: "/admin/transactions", label: "Transaction Monitoring", icon: Receipt },
   { to: "/admin/withdrawals", label: "Withdrawals", icon: ArrowUpFromLine },
+  { to: "/admin/audit", label: "Activity Logs", icon: FileClock },
+  { to: "/admin/users", label: "User Management", icon: Users },
+  { to: "/admin/blocked", label: "Blocked Users", icon: Ban },
   { to: "/admin/kyc", label: "KYC", icon: BadgeCheck },
   { to: "/admin/products", label: "Product Management", icon: Package },
-  { to: "/admin/data-plans", label: "Data Plans Management", icon: Wifi },
+  { to: "/admin/data-plans", label: "Data Plans", icon: Wifi },
   { to: "/admin/reports", label: "Reports", icon: BarChart3 },
-  { to: "/admin/notifications", label: "Notifications", icon: Bell },
   { to: "/admin/settings", label: "System Settings", icon: Settings },
   { to: "/admin/accounts", label: "Admin Accounts", icon: ShieldCheck },
-  { to: "/admin/audit", label: "Audit Logs", icon: FileClock },
   { to: "/admin/security", label: "Security", icon: Lock },
   { to: "/admin/support", label: "Support", icon: LifeBuoy },
   { to: "/admin/database", label: "Database", icon: Database },
@@ -143,8 +147,15 @@ export default function AdminLayout() {
             <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600 grid place-items-center"><Sparkles className="h-4 w-4 text-white" /></div>
             <p className="font-bold text-white text-sm">Admin</p>
           </div>
-          <span className="ml-auto px-2 py-1 rounded-full bg-emerald-500/15 text-emerald-300 text-[10px] font-semibold border border-emerald-500/30">LIVE</span>
+          <div className="ml-auto flex items-center gap-2">
+            <AdminNotificationBell />
+            <span className="px-2 py-1 rounded-full bg-emerald-500/15 text-emerald-300 text-[10px] font-semibold border border-emerald-500/30">LIVE</span>
+          </div>
         </header>
+        <div className="hidden lg:flex sticky top-0 z-20 items-center justify-end gap-3 px-6 h-14 border-b border-white/5 bg-slate-900/40 backdrop-blur-xl">
+          <AdminNotificationBell />
+          <span className="px-2 py-1 rounded-full bg-emerald-500/15 text-emerald-300 text-[10px] font-semibold border border-emerald-500/30">REAL-TIME</span>
+        </div>
         <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-full overflow-x-hidden">
           <Outlet />
         </main>
