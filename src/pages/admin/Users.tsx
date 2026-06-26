@@ -1,16 +1,36 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Users as UsersIcon, Search, Inbox } from "lucide-react";
+import { Users as UsersIcon, Search, Inbox, Ban, ShieldCheck, Clock, ShieldOff } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { toast } from "sonner";
 import { EmptyBlock, ErrorBlock, GlassCard, LoadingBlock, PageHead, StatusPill, fmtNaira } from "./_shared";
 
 const PAGE = 20;
 
 export default function AdminUsers() {
+  const qc = useQueryClient();
   const [q, setQ] = useState("");
   const [page, setPage] = useState(0);
-  const [filter, setFilter] = useState<"all" | "active" | "blocked">("all");
+  const [filter, setFilter] = useState<"all" | "active" | "suspended" | "blocked" | "disabled">("all");
+
+  async function setStatus(user_id: string, status: string) {
+    let reason: string | null = null;
+    let until: string | null = null;
+    if (status !== "active") {
+      reason = prompt(`Reason for ${status} (shown to user):`, "");
+      if (reason === null) return;
+    }
+    if (status === "suspended") {
+      const days = prompt("Suspend for how many days? (leave blank for indefinite)", "7");
+      if (days === null) return;
+      if (days.trim()) until = new Date(Date.now() + Number(days) * 86400000).toISOString();
+    }
+    const { error } = await supabase.rpc("set_user_status", { _user_id: user_id, _status: status, _reason: reason, _suspended_until: until });
+    if (error) return toast.error(error.message);
+    toast.success(`User ${status}`);
+    qc.invalidateQueries({ queryKey: ["admin", "users"] });
+  }
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["admin", "users", q, page, filter],
@@ -32,7 +52,7 @@ export default function AdminUsers() {
       const merged = (rows || []).map((r: any) => ({
         ...r,
         balance: wMap.get(r.id) || 0,
-        status: sMap.get(r.id)?.is_blocked ? "blocked" : "active",
+        status: sMap.get(r.id)?.status || (sMap.get(r.id)?.is_blocked ? "blocked" : "active"),
         verified: !!sMap.get(r.id)?.is_verified,
         last_login: lMap.get(r.id) || null,
       }));
