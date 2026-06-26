@@ -39,19 +39,19 @@ export function AccountStatusGate({ children }: { children: React.ReactNode }) {
 
   if (!uid || effectiveStatus === "active") return <>{children}</>;
 
-  const meta: Record<string, { icon: any; title: string; color: string }> = {
-    blocked: { icon: Ban, title: "Account Blocked", color: "rose" },
-    suspended: { icon: Clock, title: "Account Suspended", color: "amber" },
-    disabled: { icon: ShieldOff, title: "Account Disabled", color: "slate" },
+  const meta: Record<string, { icon: any; title: string; iconClass: string }> = {
+    blocked: { icon: Ban, title: "Account Blocked", iconClass: "bg-rose-500/15 border-rose-500/30 text-rose-300" },
+    suspended: { icon: Clock, title: "Account Suspended", iconClass: "bg-amber-500/15 border-amber-500/30 text-amber-300" },
+    disabled: { icon: ShieldOff, title: "Account Disabled", iconClass: "bg-slate-500/15 border-slate-500/30 text-slate-300" },
   };
-  const m = meta[effectiveStatus] || { icon: ShieldAlert, title: "Account restricted", color: "rose" };
+  const m = meta[effectiveStatus] || { icon: ShieldAlert, title: "Account restricted", iconClass: "bg-rose-500/15 border-rose-500/30 text-rose-300" };
   const Icon = m.icon;
 
   return (
     <div className="min-h-screen grid place-items-center bg-gradient-to-br from-slate-950 via-rose-950/30 to-slate-950 p-4">
       <div className="w-full max-w-md rounded-2xl bg-slate-900/80 backdrop-blur-xl border border-white/10 p-8 text-center shadow-2xl">
-        <div className={`mx-auto h-16 w-16 rounded-2xl bg-${m.color}-500/15 border border-${m.color}-500/30 grid place-items-center mb-4`}>
-          <Icon className={`h-8 w-8 text-${m.color}-300`} />
+        <div className={`mx-auto h-16 w-16 rounded-2xl border grid place-items-center mb-4 ${m.iconClass}`}>
+          <Icon className="h-8 w-8" />
         </div>
         <h1 className="text-2xl font-bold text-white">{m.title}</h1>
         <p className="text-sm text-slate-400 mt-2">{status?.block_reason || "Please contact support for more information."}</p>
