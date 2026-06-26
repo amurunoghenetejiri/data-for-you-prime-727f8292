@@ -147,8 +147,15 @@ export default function AdminLayout() {
             <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600 grid place-items-center"><Sparkles className="h-4 w-4 text-white" /></div>
             <p className="font-bold text-white text-sm">Admin</p>
           </div>
-          <span className="ml-auto px-2 py-1 rounded-full bg-emerald-500/15 text-emerald-300 text-[10px] font-semibold border border-emerald-500/30">LIVE</span>
+          <div className="ml-auto flex items-center gap-2">
+            <AdminNotificationBell />
+            <span className="px-2 py-1 rounded-full bg-emerald-500/15 text-emerald-300 text-[10px] font-semibold border border-emerald-500/30">LIVE</span>
+          </div>
         </header>
+        <div className="hidden lg:flex sticky top-0 z-20 items-center justify-end gap-3 px-6 h-14 border-b border-white/5 bg-slate-900/40 backdrop-blur-xl">
+          <AdminNotificationBell />
+          <span className="px-2 py-1 rounded-full bg-emerald-500/15 text-emerald-300 text-[10px] font-semibold border border-emerald-500/30">REAL-TIME</span>
+        </div>
         <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-full overflow-x-hidden">
           <Outlet />
         </main>
