@@ -145,7 +145,12 @@ function PaystackConfigTab() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (data) setForm(data);
+    if (data) {
+      setForm({
+        ...data,
+        mode: data.mode || "test",
+      });
+    }
   }, [data]);
 
   async function save() {
@@ -324,7 +329,7 @@ function PaystackConfigTab() {
         <div className="mt-6">
           <label className="block text-xs font-medium text-slate-400 mb-2 uppercase tracking-wider">Active Mode</label>
           <select
-            value={form.mode}
+            value={form.mode || "test"}
             onChange={(e) => setForm({ ...form, mode: e.target.value })}
             className="w-full h-10 px-3 rounded-lg bg-slate-800/60 border border-white/10 text-white"
           >
@@ -703,6 +708,7 @@ function ManualPaymentMethodForm({
         const { error } = await supabase.from("manual_payment_methods").insert({
           ...form,
           created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
           updated_by: (await supabase.auth.getUser()).data.user?.id,
         });
 
