@@ -54,27 +54,38 @@ function PaymentProvidersTab() {
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["admin", "payment_providers"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("payment_providers").select("*").order("provider_name");
+      const { data, error } = await supabase
+        .from("payment_providers")
+        .select("*")
+        .order("provider_name");
       if (error) throw error;
-      return data;
+      return data || [];
     },
+    staleTime: 30000,
+    retry: 1,
   });
 
   const qc = useQueryClient();
 
   async function toggleProvider(provider: any) {
-    const { error } = await supabase
-      .from("payment_providers")
-      .update({ is_enabled: !provider.is_enabled })
-      .eq("id", provider.id);
+    try {
+      const { error } = await supabase
+        .from("payment_providers")
+        .update({ is_enabled: !provider.is_enabled })
+        .eq("id", provider.id);
 
-    if (error) return toast.error(error.message);
-    await logAdminAction(supabase, "toggle_payment_provider", "payment_provider", provider.id, {
-      provider_name: provider.provider_name,
-      enabled: !provider.is_enabled,
-    });
-    toast.success(`${provider.provider_name} ${!provider.is_enabled ? "enabled" : "disabled"}`);
-    qc.invalidateQueries({ queryKey: ["admin", "payment_providers"] });
+      if (error) throw error;
+      
+      await logAdminAction(supabase, "toggle_payment_provider", "payment_provider", provider.id, {
+        provider_name: provider.provider_name,
+        enabled: !provider.is_enabled,
+      });
+      
+      toast.success(`${provider.provider_name} ${!provider.is_enabled ? "enabled" : "disabled"}`);
+      qc.invalidateQueries({ queryKey: ["admin", "payment_providers"] });
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update provider");
+    }
   }
 
   if (isLoading) return <LoadingBlock />;
@@ -118,10 +129,15 @@ function PaystackConfigTab() {
   const { data, isLoading } = useQuery({
     queryKey: ["admin", "paystack_config"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("paystack_config").select("*").maybeSingle();
+      const { data, error } = await supabase
+        .from("paystack_config")
+        .select("*")
+        .maybeSingle();
       if (error) throw error;
       return data;
     },
+    staleTime: 30000,
+    retry: 1,
   });
 
   const [form, setForm] = useState<any>(null);
@@ -136,24 +152,29 @@ function PaystackConfigTab() {
     if (!form) return;
     setBusy(true);
 
-    const { error } = await supabase
-      .from("paystack_config")
-      .update({
-        ...form,
-        updated_at: new Date().toISOString(),
-        updated_by: (await supabase.auth.getUser()).data.user?.id,
-      })
-      .eq("id", form.id);
+    try {
+      const { error } = await supabase
+        .from("paystack_config")
+        .update({
+          ...form,
+          updated_at: new Date().toISOString(),
+          updated_by: (await supabase.auth.getUser()).data.user?.id,
+        })
+        .eq("id", form.id);
 
-    setBusy(false);
-    if (error) return toast.error(error.message);
+      if (error) throw error;
 
-    await logAdminAction(supabase, "update_paystack_config", "paystack_config", form.id, {
-      mode: form.mode,
-    });
+      await logAdminAction(supabase, "update_paystack_config", "paystack_config", form.id, {
+        mode: form.mode,
+      });
 
-    toast.success("Paystack configuration saved");
-    qc.invalidateQueries({ queryKey: ["admin", "paystack_config"] });
+      toast.success("Paystack configuration saved");
+      qc.invalidateQueries({ queryKey: ["admin", "paystack_config"] });
+    } catch (err: any) {
+      toast.error(err.message || "Failed to save configuration");
+    } finally {
+      setBusy(false);
+    }
   }
 
   if (isLoading || !form) return <LoadingBlock />;
@@ -342,10 +363,15 @@ function MonnifyConfigTab() {
   const { data, isLoading } = useQuery({
     queryKey: ["admin", "monnify_config"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("monnify_config").select("*").maybeSingle();
+      const { data, error } = await supabase
+        .from("monnify_config")
+        .select("*")
+        .maybeSingle();
       if (error) throw error;
       return data;
     },
+    staleTime: 30000,
+    retry: 1,
   });
 
   const [form, setForm] = useState<any>(null);
@@ -360,25 +386,30 @@ function MonnifyConfigTab() {
     if (!form) return;
     setBusy(true);
 
-    const { error } = await supabase
-      .from("monnify_config")
-      .update({
-        ...form,
-        updated_at: new Date().toISOString(),
-        updated_by: (await supabase.auth.getUser()).data.user?.id,
-      })
-      .eq("id", form.id);
+    try {
+      const { error } = await supabase
+        .from("monnify_config")
+        .update({
+          ...form,
+          updated_at: new Date().toISOString(),
+          updated_by: (await supabase.auth.getUser()).data.user?.id,
+        })
+        .eq("id", form.id);
 
-    setBusy(false);
-    if (error) return toast.error(error.message);
+      if (error) throw error;
 
-    await logAdminAction(supabase, "update_monnify_config", "monnify_config", form.id, {
-      environment: form.environment,
-      is_enabled: form.is_enabled,
-    });
+      await logAdminAction(supabase, "update_monnify_config", "monnify_config", form.id, {
+        environment: form.environment,
+        is_enabled: form.is_enabled,
+      });
 
-    toast.success("Monnify configuration saved");
-    qc.invalidateQueries({ queryKey: ["admin", "monnify_config"] });
+      toast.success("Monnify configuration saved");
+      qc.invalidateQueries({ queryKey: ["admin", "monnify_config"] });
+    } catch (err: any) {
+      toast.error(err.message || "Failed to save configuration");
+    } finally {
+      setBusy(false);
+    }
   }
 
   if (isLoading || !form) return <LoadingBlock />;
@@ -508,8 +539,10 @@ function ManualPaymentMethodsTab() {
         .select("*")
         .order("sort_order", { ascending: true });
       if (error) throw error;
-      return data;
+      return data || [];
     },
+    staleTime: 10000,
+    retry: 1,
   });
 
   const [isAddingNew, setIsAddingNew] = useState(false);
@@ -517,7 +550,16 @@ function ManualPaymentMethodsTab() {
 
   return (
     <div className="space-y-4">
-      {isAddingNew && <ManualPaymentMethodForm onClose={() => setIsAddingNew(false)} onSave={() => { refetch(); setIsAddingNew(false); }} />}
+      {isAddingNew && (
+        <ManualPaymentMethodForm
+          onClose={() => setIsAddingNew(false)}
+          onSave={() => {
+            refetch();
+            setIsAddingNew(false);
+            qc.invalidateQueries({ queryKey: ["admin", "manual_payment_methods"] });
+          }}
+        />
+      )}
 
       {editingId && (
         <ManualPaymentMethodForm
@@ -526,6 +568,7 @@ function ManualPaymentMethodsTab() {
           onSave={() => {
             refetch();
             setEditingId(null);
+            qc.invalidateQueries({ queryKey: ["admin", "manual_payment_methods"] });
           }}
         />
       )}
@@ -612,6 +655,8 @@ function ManualPaymentMethodForm({
       if (error) throw error;
       return data;
     },
+    staleTime: 5000,
+    retry: 1,
   });
 
   const [form, setForm] = useState({
@@ -648,9 +693,11 @@ function ManualPaymentMethodForm({
           .eq("id", methodId);
 
         if (error) throw error;
+        
         await logAdminAction(supabase, "update_manual_payment_method", "manual_payment_method", methodId, {
           display_name: form.display_name,
         });
+        
         toast.success("Payment method updated");
       } else {
         const { error } = await supabase.from("manual_payment_methods").insert({
@@ -660,14 +707,18 @@ function ManualPaymentMethodForm({
         });
 
         if (error) throw error;
+        
         await logAdminAction(supabase, "create_manual_payment_method", "manual_payment_method", null, {
           display_name: form.display_name,
         });
+        
         toast.success("Payment method added");
       }
 
       qc.invalidateQueries({ queryKey: ["admin", "manual_payment_methods"] });
       onSave();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to save payment method");
     } finally {
       setBusy(false);
     }
@@ -806,14 +857,19 @@ function DeletePaymentMethodButton({
     if (!confirm("Delete this payment method? This cannot be undone.")) return;
 
     setBusy(true);
-    const { error } = await supabase.from("manual_payment_methods").delete().eq("id", methodId);
-    setBusy(false);
+    
+    try {
+      const { error } = await supabase.from("manual_payment_methods").delete().eq("id", methodId);
+      if (error) throw error;
 
-    if (error) return toast.error(error.message);
-
-    await logAdminAction(supabase, "delete_manual_payment_method", "manual_payment_method", methodId, {});
-    toast.success("Payment method deleted");
-    onDeleted();
+      await logAdminAction(supabase, "delete_manual_payment_method", "manual_payment_method", methodId, {});
+      toast.success("Payment method deleted");
+      onDeleted();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to delete payment method");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
