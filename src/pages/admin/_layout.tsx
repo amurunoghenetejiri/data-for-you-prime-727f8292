@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   LayoutDashboard, Users, Receipt, ArrowDownToLine, ArrowUpFromLine, BadgeCheck,
   Package, BarChart3, Bell, Settings, ShieldCheck, FileClock, Lock, LifeBuoy,
-  Database, LogOut, Menu, X, Sparkles, Wifi, CreditCard, Activity
+  Database, LogOut, Menu, X, Sparkles, Wifi
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,6 @@ import { toast } from "sonner";
 const nav = [
   { to: "/admin", label: "Dashboard", icon: LayoutDashboard, end: true },
   { to: "/admin/users", label: "User Management", icon: Users },
-  { to: "/admin/activity", label: "Live Activity", icon: Activity },
   { to: "/admin/transactions", label: "Transactions", icon: Receipt },
   { to: "/admin/deposits", label: "Deposits", icon: ArrowDownToLine },
   { to: "/admin/withdrawals", label: "Withdrawals", icon: ArrowUpFromLine },
@@ -23,7 +22,6 @@ const nav = [
   { to: "/admin/data-plans", label: "Data Plans Management", icon: Wifi },
   { to: "/admin/reports", label: "Reports", icon: BarChart3 },
   { to: "/admin/notifications", label: "Notifications", icon: Bell },
-  { to: "/admin/payment-settings", label: "Payment Settings", icon: CreditCard },
   { to: "/admin/settings", label: "System Settings", icon: Settings },
   { to: "/admin/accounts", label: "Admin Accounts", icon: ShieldCheck },
   { to: "/admin/audit", label: "Audit Logs", icon: FileClock },
@@ -52,8 +50,9 @@ export default function AdminLayout() {
     }
     check();
     const { data: sub } = supabase.auth.onAuthStateChange(() => check());
+    // session timeout — 30 min inactivity
     let timer: number;
-    const reset = () => { window.clearTimeout(timer); timer = window.setTimeout(async () => { await supabase.auth.signOut(); toast.info("Admin session timed out"); navigate("/admin/login"); }, 30 * 60_000); };
+    const reset = () => { window.clearTimeout(timer); timer = window.setTimeout(async () => { await supabase.auth.signOut(); toast.info("Admin session timed out"); navigate("/admin/login"); }, 30 * 60 * 1000); };
     const events = ["mousemove", "keydown", "click", "touchstart"];
     events.forEach((e) => window.addEventListener(e, reset, { passive: true }));
     reset();
@@ -189,11 +188,11 @@ function AdminLogin({ onSuccess }: { onSuccess: () => void }) {
           </div>
         </div>
         <label className="block text-xs uppercase tracking-widest text-slate-400 font-semibold mb-1">Email</label>
-        <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" required autoComplete="email" className="w-full mb-3 h-11 rounded-lg bg-slate-800/60 border border-white/10 px-3 text-white" />
+        <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" required autoComplete="email" className="w-full mb-3 h-11 rounded-lg bg-slate-800/60 border border-white/10 px-3 text-white placeholder:text-slate-500 focus:outline-none focus:border-violet-500" placeholder="admin@data4me.ng" />
         <label className="block text-xs uppercase tracking-widest text-slate-400 font-semibold mb-1">Password</label>
-        <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" required autoComplete="current-password" className="w-full mb-4 h-11 rounded-lg bg-slate-800/60 border border-white/10 px-3 text-white" />
+        <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" required autoComplete="current-password" className="w-full mb-4 h-11 rounded-lg bg-slate-800/60 border border-white/10 px-3 text-white placeholder:text-slate-500 focus:outline-none focus:border-violet-500" placeholder="••••••••" />
         {err && <div role="alert" className="text-sm text-rose-300 bg-rose-500/10 border border-rose-500/30 rounded-lg px-3 py-2 mb-3">{err}</div>}
-        <button disabled={busy} className="w-full h-11 rounded-lg bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-semibold shadow-lg shadow-violet-900/50 disabled:opacity-50">{busy ? "Signing in..." : "Sign In"}</button>
+        <button disabled={busy} className="w-full h-11 rounded-lg bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-semibold shadow-lg shadow-violet-900/50 disabled:opacity-50">{busy ? "Signing in…" : "Sign in"}</button>
         <p className="text-[11px] text-slate-500 mt-4 text-center">Sessions auto-expire after 30 minutes of inactivity.</p>
       </form>
     </div>

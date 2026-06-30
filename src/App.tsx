@@ -40,9 +40,7 @@ import AdminProducts from "./pages/admin/Products";
 import AdminDataPlans from "./pages/admin/DataPlans";
 import AdminAuditLogs from "./pages/admin/AuditLogs";
 import AdminSettings from "./pages/admin/Settings";
-import PaymentSettings from "./pages/admin/PaymentSettings";
 import AdminBroadcast from "./pages/admin/Notifications";
-import AdminActivityLive from "./pages/admin/ActivityLive";
 import { KycPage, ReportsPage, AdminAccountsPage, SecurityPage, SupportPage, DatabasePage } from "./pages/admin/Misc";
 
 const queryClient = new QueryClient();
@@ -67,9 +65,7 @@ const App = () => (
               <Route path="data-plans" element={<AdminDataPlans />} />
               <Route path="reports" element={<ReportsPage />} />
               <Route path="notifications" element={<AdminBroadcast />} />
-              <Route path="activity" element={<AdminActivityLive />} />
               <Route path="settings" element={<AdminSettings />} />
-              <Route path="payment-settings" element={<PaymentSettings />} />
               <Route path="accounts" element={<AdminAccountsPage />} />
               <Route path="audit" element={<AdminAuditLogs />} />
               <Route path="security" element={<SecurityPage />} />
