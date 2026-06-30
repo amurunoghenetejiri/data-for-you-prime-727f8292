@@ -11,6 +11,7 @@ import { Wallet as WalletIcon, ArrowDownLeft, Copy, CreditCard, Building2, Check
 import { NetworkBadge } from "@/components/NetworkBadge";
 import { supabase } from "@/integrations/supabase/client";
 import { useSearchParams } from "react-router-dom";
+import { getCheckoutPaymentMethods, getPaystackPublicKey, getEnabledManualPaymentMethods } from "@/lib/paymentConfig";
 
 const NIGERIAN_BANKS = [
   "Opay","PalmPay","Moniepoint","Access Bank","GTBank","First Bank","UBA",
@@ -30,6 +31,26 @@ export default function Wallet() {
   const fileRef = useRef<HTMLInputElement>(null);
   const recent = transactions.slice(0, 6);
   const [searchParams, setSearchParams] = useSearchParams();
+  const [paymentMethods, setPaymentMethods] = useState<any>(null);
+  const [manualMethods, setManualMethods] = useState<any[]>([]);
+  const [selectedBank, setSelectedBank] = useState<any>(null);
+
+  // Load enabled payment methods
+  useEffect(() => {
+    async function loadPaymentMethods() {
+      const methods = await getCheckoutPaymentMethods(supabase);
+      setPaymentMethods(methods);
+      
+      // Load manual payment methods for bank transfer section
+      const manual = await getEnabledManualPaymentMethods(supabase);
+      setManualMethods(manual);
+      
+      if (manual.length > 0) {
+        setSelectedBank(manual[0]);
+      }
+    }
+    loadPaymentMethods();
+  }, []);
 
   // Paystack return verification
   useEffect(() => {
@@ -53,6 +74,8 @@ export default function Wallet() {
   async function payWithPaystack() {
     if (!user) { openAuth("login"); return; }
     if (psAmount < 100) return toast.error("Minimum funding is ₦100");
+    if (!paymentMethods?.paystack) return toast.error("Paystack payment is currently disabled");
+    
     setPsLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke("paystack-initialize", {
@@ -92,14 +115,16 @@ export default function Wallet() {
   function printReceipt() {
     const w = window.open("", "_blank", "width=520,height=720");
     if (!w) return;
+    const bankInfo = selectedBank || { bank_name: settings.bankName, account_name: settings.accountName, account_number: settings.accountNumber };
     w.document.write(`<html><head><title>Data4Me Funding Receipt</title>
-    <style>body{font-family:system-ui;padding:32px;color:#0f172a}h1{color:#059669}table{width:100%;border-collapse:collapse;margin-top:12px}td{padding:8px;border-bottom:1px solid #e2e8f0}.l{color:#64748b}</style></head>
+    <style>body{font-family:system-ui;padding:32px;color:#0f172a}h1{color:#059669}table{width:100%;border-collapse:collapse;margin-top:12px}td{padding:8px;border-bottom:1px solid #e2e8f0}.l{color:#64748b}</style>
+    </head>
     <body><h1>Data4Me — Funding Request</h1>
     <table>
       <tr><td class="l">Username</td><td><b>${user?.username || "-"}</b></td></tr>
       <tr><td class="l">Amount</td><td><b>₦${amount.toLocaleString()}</b></td></tr>
       <tr><td class="l">Bank</td><td>${bank}</td></tr>
-      <tr><td class="l">Pay to</td><td>${settings.accountName} · ${settings.accountNumber} (${settings.bankName})</td></tr>
+      <tr><td class="l">Pay to</td><td>${bankInfo.account_name} · ${bankInfo.account_number} (${bankInfo.bank_name})</td></tr>
       <tr><td class="l">Receipt file</td><td>${receipt?.name || "-"}</td></tr>
       <tr><td class="l">Date</td><td>${new Date().toLocaleString()}</td></tr>
       <tr><td class="l">Status</td><td><b>Pending review</b></td></tr>
@@ -109,6 +134,17 @@ export default function Wallet() {
     w.document.close();
     w.focus();
     setTimeout(() => w.print(), 300);
+  }
+
+  if (!paymentMethods) {
+    return (
+      <div className="container py-10">
+        <div className="animate-pulse space-y-4">
+          <div className="h-8 bg-slate-200 rounded w-1/4"></div>
+          <div className="h-32 bg-slate-200 rounded"></div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -135,110 +171,135 @@ export default function Wallet() {
             <WalletIcon className="h-10 w-10 opacity-50" />
           </div>
           <div className="relative mt-8 grid grid-cols-3 gap-3 text-sm">
-            <div className="p-3 rounded-xl bg-white/10"><p className="opacity-70 text-xs">Spent</p><p className="font-semibold">₦{user ? transactions.filter(t=>t.type!=="wallet"&&t.type!=="eth").reduce((s,t)=>s+t.amount,0).toLocaleString() : "0"}</p></div>
-            <div className="p-3 rounded-xl bg-white/10"><p className="opacity-70 text-xs">Funded</p><p className="font-semibold">₦{user ? transactions.filter(t=>t.type==="wallet").reduce((s,t)=>s+t.amount,0).toLocaleString() : "0"}</p></div>
+            <div className="p-3 rounded-xl bg-white/10"><p className="opacity-70 text-xs">Spent</p><p className="font-semibold">₦{user ? transactions.filter(t=>t.type!=="wallet"&&t.type!=="eth").reduce((s,t)=>s+t.amount,0).toLocaleString() : 0}</p></div>
+            <div className="p-3 rounded-xl bg-white/10"><p className="opacity-70 text-xs">Funded</p><p className="font-semibold">₦{user ? transactions.filter(t=>t.type==="wallet").reduce((s,t)=>s+t.amount,0).toLocaleString() : 0}</p></div>
             <div className="p-3 rounded-xl bg-white/10"><p className="opacity-70 text-xs">Cashback</p><p className="font-semibold">₦0</p></div>
           </div>
         </Card>
 
-        <Card className="p-6 shadow-card bg-gradient-to-br from-card to-accent/20">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="h-9 w-9 rounded-xl bg-emerald-500/15 text-emerald-600 grid place-items-center"><Zap className="h-4 w-4" /></div>
-            <div>
-          <h3 className="font-semibold mb-3">Fund Wallet</h3>
-              <p className="text-xs text-muted-foreground">Bank transfer (admin approval)</p>
+        {paymentMethods?.paystack && (
+          <Card className="p-6 shadow-card bg-gradient-to-br from-card to-accent/20">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="h-9 w-9 rounded-xl bg-emerald-500/15 text-emerald-600 grid place-items-center"><Zap className="h-4 w-4" /></div>
+              <div>
+            <h3 className="font-semibold mb-3">Fund with Paystack</h3>
+                <p className="text-xs text-muted-foreground">Instant — wallet credited automatically</p>
+              </div>
             </div>
-          </div>
-          <Label className="mb-1 block text-xs">Amount (₦) — minimum ₦100</Label>
-          <Input type="number" min={100} value={amount} onChange={(e) => setAmount(Number(e.target.value) || 0)} />
-          <div className="grid grid-cols-3 gap-2 mt-3">
-            {[500, 1000, 2000, 5000, 10000, 20000].map((a) => (
-              <button key={a} onClick={() => setAmount(a)} className={`text-sm rounded-lg py-2 border ${amount === a ? "border-primary bg-accent" : "border-border hover:bg-muted"}`}>₦{a.toLocaleString()}</button>
-            ))}
-          </div>
-          <Label className="mt-4 mb-1 block text-xs">Your bank</Label>
-          <Select value={bank} onValueChange={setBank}>
-            <SelectTrigger><SelectValue placeholder="Choose bank" /></SelectTrigger>
-            <SelectContent>
-              {NIGERIAN_BANKS.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}
-            </SelectContent>
-          </Select>
-
-          <Label className="mt-4 mb-1 block text-xs">Upload receipt (JPG, PNG, PDF)</Label>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/jpeg,image/png,application/pdf"
-            className="hidden"
-            onChange={(e) => setReceipt(e.target.files?.[0] || null)}
-          />
-          <button
-            type="button"
-            onClick={() => fileRef.current?.click()}
-            className="w-full p-3 rounded-lg border-2 border-dashed border-border hover:border-primary hover:bg-accent/40 transition text-sm flex items-center gap-2 justify-center"
-          >
-            {receipt ? <FileCheck2 className="h-4 w-4 text-success" /> : <Upload className="h-4 w-4 text-muted-foreground" />}
-            <span className="truncate">{receipt ? receipt.name : "Click to upload your receipt"}</span>
-          </button>
-
-          <Button onClick={submitFunding} className="w-full mt-4 bg-gradient-primary">Submit Funding</Button>
-          <p className="text-[11px] text-muted-foreground mt-2 text-center">Your payment receipt will be reviewed. You'll be notified once verified.</p>
-        </Card>
-
-        <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setStep("idle"); }}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2"><CheckCircle2 className="h-6 w-6 text-success" /> Funding submitted</DialogTitle>
-              <DialogDescription>Your ₦{amount.toLocaleString()} funding request was submitted for verification. You'll be notified once approved.</DialogDescription>
-            </DialogHeader>
-            <div className="text-xs text-center p-3 rounded-lg bg-muted/50">
-              <p>Pay to <span className="font-semibold">{settings.accountName}</span></p>
-              <p className="font-mono">{settings.accountNumber} · {settings.bankName}</p>
+            <Label className="mb-1 block text-xs">Amount (₦) — minimum ₦100</Label>
+            <Input type="number" min={100} value={psAmount} onChange={(e) => setPsAmount(Number(e.target.value) || 0)} />
+            <div className="grid grid-cols-4 gap-2 mt-3">
+              {[1000, 2000, 5000, 10000].map((a) => (
+                <button key={a} onClick={() => setPsAmount(a)} className={`text-xs rounded-lg py-2 border ${psAmount === a ? "border-emerald-500 bg-emerald-500/10" : "border-border hover:bg-muted"}`}>₦{a.toLocaleString()}</button>
+              ))}
             </div>
-            <DialogFooter className="gap-2">
-              <Button variant="outline" onClick={printReceipt}><Printer className="h-4 w-4 mr-2" />Print receipt</Button>
-              <Button onClick={() => setOpen(false)} className="bg-gradient-primary">Done</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+            <Button onClick={payWithPaystack} disabled={psLoading} className="w-full mt-4 bg-gradient-to-r from-emerald-500 to-teal-600 hover:opacity-90 text-white">
+              {psLoading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Initializing…</> : <>Pay ₦{psAmount.toLocaleString()} with Paystack</>}
+            </Button>
+            <p className="text-[11px] text-muted-foreground mt-2 text-center">Secure checkout · Cards, USSD, Bank Transfer</p>
+          </Card>
+        )}
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6 mt-6">
-        <Card className="p-6 shadow-card border-2 border-primary/20 hover-lift">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white grid place-items-center shadow-md"><Building2 className="h-5 w-5" /></div>
-            <div><h3 className="font-semibold text-lg">🏦 Fund via Bank Transfer</h3><p className="text-xs text-muted-foreground">Upload receipt for review</p></div>
-          </div>
-          <p className="text-sm text-muted-foreground mb-4">Send any amount to the account below. Your wallet is credited automatically.</p>
-          <div className="space-y-2 text-sm bg-muted/40 rounded-xl p-4">
-            <Row label="Bank">{settings.bankName}</Row>
-            <Row label="Account name">{settings.accountName}</Row>
-            <Row label="Account number"><span className="flex items-center gap-2 font-mono">{settings.accountNumber}<Copy className="h-3.5 w-3.5 cursor-pointer hover:text-primary" onClick={() => { navigator.clipboard.writeText(settings.accountNumber); toast.success("Copied"); }} /></span></Row>
-            <Row label="USSD">{settings.ussdCode}</Row>
-          </div>
-          <Button variant="outline" size="sm" className="mt-3 w-full" onClick={() => { navigator.clipboard.writeText(settings.accountNumber); toast.success("Account number copied!"); }}>
-            <Copy className="h-4 w-4 mr-2" />Copy Account Number
-          </Button>
-        </Card>
+        {manualMethods.length > 0 && (
+          <Card className="p-6 shadow-card border-2 border-primary/20 hover-lift">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white grid place-items-center shadow-md"><Building2 className="h-5 w-5" /></div>
+              <div><h3 className="font-semibold text-lg">🏦 Fund via Bank Transfer</h3><p className="text-xs text-muted-foreground">Upload receipt for review</p></div>
+            </div>
+            <p className="text-sm text-muted-foreground mb-4">Send any amount to the account below. Your wallet is credited after admin verification.</p>
+            
+            {manualMethods.length > 1 && (
+              <div className="mb-4">
+                <Label className="text-xs mb-1 block">Select Payment Method</Label>
+                <Select value={selectedBank?.id || ""} onValueChange={(id) => setSelectedBank(manualMethods.find(m => m.id === id))}>
+                  <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {manualMethods.map((method) => (
+                      <SelectItem key={method.id} value={method.id}>{method.display_name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
-        <Card className="p-6 shadow-card border-2 border-emerald-500/20 hover-lift bg-gradient-to-br from-card to-emerald-500/5">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white grid place-items-center shadow-md"><CreditCard className="h-5 w-5" /></div>
-            <div><h3 className="font-semibold text-lg">💳 Fund via Paystack</h3><p className="text-xs text-muted-foreground">Instant — wallet credited automatically</p></div>
-          </div>
-          <Label className="mb-1 block text-xs">Amount (₦) — minimum ₦100</Label>
-          <Input type="number" min={100} value={psAmount} onChange={(e) => setPsAmount(Number(e.target.value) || 0)} />
-          <div className="grid grid-cols-4 gap-2 mt-3">
-            {[1000, 2000, 5000, 10000].map((a) => (
-              <button key={a} onClick={() => setPsAmount(a)} className={`text-xs rounded-lg py-2 border ${psAmount === a ? "border-emerald-500 bg-emerald-500/10" : "border-border hover:bg-muted"}`}>₦{a.toLocaleString()}</button>
-            ))}
-          </div>
-          <Button onClick={payWithPaystack} disabled={psLoading} className="w-full mt-4 bg-gradient-to-r from-emerald-500 to-teal-600 hover:opacity-90 text-white">
-            {psLoading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Initializing…</> : <>Pay ₦{psAmount.toLocaleString()} with Paystack</>}
-          </Button>
-          <p className="text-[11px] text-muted-foreground mt-2 text-center">Secure checkout · Cards, USSD, Bank Transfer</p>
-        </Card>
+            <div className="space-y-2 text-sm bg-muted/40 rounded-xl p-4">
+              <Row label="Bank">{selectedBank?.bank_name || settings.bankName}</Row>
+              <Row label="Account name">{selectedBank?.account_name || settings.accountName}</Row>
+              <Row label="Account number">
+                <span className="flex items-center gap-2 font-mono">
+                  {selectedBank?.account_number || settings.accountNumber}
+                  <Copy className="h-3.5 w-3.5 cursor-pointer hover:text-primary" onClick={() => {
+                    navigator.clipboard.writeText(selectedBank?.account_number || settings.accountNumber);
+                    toast.success("Account number copied!");
+                  }} />
+                </span>
+              </Row>
+              {selectedBank?.description && <p className="text-xs text-muted-foreground mt-2">{selectedBank.description}</p>}
+            </div>
+
+            <Label className="mt-4 mb-1 block text-xs">Amount (₦) — minimum ₦100</Label>
+            <Input type="number" min={100} value={amount} onChange={(e) => setAmount(Number(e.target.value) || 0)} />
+            <div className="grid grid-cols-3 gap-2 mt-3">
+              {[500, 1000, 2000, 5000, 10000, 20000].map((a) => (
+                <button key={a} onClick={() => setAmount(a)} className={`text-sm rounded-lg py-2 border ${amount === a ? "border-primary bg-accent" : "border-border hover:bg-muted"}`}>₦{a.toLocaleString()}</button>
+              ))}
+            </div>
+
+            <Label className="mt-4 mb-1 block text-xs">Upload receipt (JPG, PNG, PDF)</Label>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/jpeg,image/png,application/pdf"
+              className="hidden"
+              onChange={(e) => setReceipt(e.target.files?.[0] || null)}
+            />
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              className="w-full p-3 rounded-lg border-2 border-dashed border-border hover:border-primary hover:bg-accent/40 transition text-sm flex items-center gap-2 justify-center"
+            >
+              {receipt ? <FileCheck2 className="h-4 w-4 text-success" /> : <Upload className="h-4 w-4 text-muted-foreground" />}
+              <span className="truncate">{receipt ? receipt.name : "Click to upload your receipt"}</span>
+            </button>
+
+            <Button onClick={submitFunding} className="w-full mt-4 bg-gradient-primary">Submit Funding</Button>
+            <p className="text-[11px] text-muted-foreground mt-2 text-center">Your payment receipt will be reviewed. You'll be notified once verified.</p>
+          </Card>
+        )}
+
+        {paymentMethods?.monnify && (
+          <Card className="p-6 shadow-card border-2 border-cyan-500/20 hover-lift bg-gradient-to-br from-card to-cyan-500/5">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-cyan-500 to-sky-600 text-white grid place-items-center shadow-md"><CreditCard className="h-5 w-5" /></div>
+              <div><h3 className="font-semibold text-lg">💳 Fund with Monnify</h3><p className="text-xs text-muted-foreground">Fast & Reliable Transfers</p></div>
+            </div>
+            <p className="text-sm text-muted-foreground mb-4">Multiple payment options including Transfer, USSD, and Card payments.</p>
+            <Button className="w-full bg-gradient-to-r from-cyan-500 to-sky-600 hover:opacity-90 text-white">
+              Pay with Monnify
+            </Button>
+            <p className="text-[11px] text-muted-foreground mt-2 text-center">Secure checkout · Multiple payment methods available</p>
+          </Card>
+        )}
       </div>
+
+      <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setStep("idle"); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><CheckCircle2 className="h-6 w-6 text-success" /> Funding submitted</DialogTitle>
+            <DialogDescription>Your ₦{amount.toLocaleString()} funding request was submitted for verification. You'll be notified once approved.</DialogDescription>
+          </DialogHeader>
+          <div className="text-xs text-center p-3 rounded-lg bg-muted/50">
+            <p>Pay to <span className="font-semibold">{selectedBank?.account_name || settings.accountName}</span></p>
+            <p className="font-mono">{selectedBank?.account_number || settings.accountNumber} · {selectedBank?.bank_name || settings.bankName}</p>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={printReceipt}><Printer className="h-4 w-4 mr-2" />Print receipt</Button>
+            <Button onClick={() => setOpen(false)} className="bg-gradient-primary">Done</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Card className="p-6 shadow-card mt-6">
         <h3 className="font-semibold mb-4 flex items-center gap-2"><CreditCard className="h-5 w-5 text-primary" /> Recent activity</h3>
