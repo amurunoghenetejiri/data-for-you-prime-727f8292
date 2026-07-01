@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowDownToLine, Check, X, Clock, AlertCircle, Image, FileText, Eye, EyeOff, Zap, Users } from "lucide-react";
+import { ArrowDownToLine, Check, X, Clock, AlertCircle, Image, FileText, Eye, EyeOff, Zap, Users, Bell } from "lucide-react";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { EmptyBlock, ErrorBlock, GlassCard, LoadingBlock, PageHead, StatusPill, fmtNaira, logAdminAction } from "./_shared";
@@ -33,26 +33,28 @@ export default function ReceiptQueue() {
   const [rejectDialog, setRejectDialog] = useState<{ open: boolean; receipt: FundingRequest | null }>({ open: false, receipt: null });
   const [rejectReason, setRejectReason] = useState("");
 
-  // Realtime subscription for new receipts
+  // Realtime subscription for funding_requests changes
   useEffect(() => {
-    if (filter !== "pending") return;
     const channel = supabase
-      .channel("receipt-queue")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "funding_requests", filter: "status=eq.pending" }, (payload) => {
-        toast.info("📬 New funding receipt submitted");
-        qc.invalidateQueries({ queryKey: ["admin", "receipt-queue", filter] });
+      .channel("receipt-queue-realtime")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "funding_requests" }, (payload) => {
+        const newReceipt = payload.new as any;
+        if (newReceipt.status === "pending" || filter === "all") {
+          toast.info("📬 New funding receipt submitted", { icon: <Bell className="h-5 w-5 text-blue-500" /> });
+          qc.invalidateQueries({ queryKey: ["admin", "receipt-queue"] });
+        }
       })
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "funding_requests" }, (payload) => {
-        if ((payload.new as any).status !== "pending") {
-          qc.invalidateQueries({ queryKey: ["admin", "receipt-queue", filter] });
-        }
+        const updated = payload.new as any;
+        // Always update on status change
+        qc.invalidateQueries({ queryKey: ["admin", "receipt-queue"] });
       })
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [filter, qc]);
+  }, [qc, filter]);
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["admin", "receipt-queue", filter],
@@ -81,8 +83,21 @@ export default function ReceiptQueue() {
     const { error: e1 } = await supabase.from("funding_requests").update({ status: "approved", reviewed_at: new Date().toISOString() }).eq("id", r.id);
     if (e1) return toast.error(e1.message);
 
-    const { error: e2 } = await supabase.rpc("credit_wallet", { _user_id: r.user_id, _amount: r.amount, _reference: r.reference, _description: `Deposit approved` });
+    // Credit wallet with RPC
+    const { error: e2 } = await supabase.rpc("credit_wallet", { 
+      _user_id: r.user_id, 
+      _amount: r.amount, 
+      _reference: r.reference, 
+      _description: `Wallet funding approved` 
+    });
     if (e2) return toast.error(e2.message);
+
+    // Send notification to user
+    const { error: e3 } = await supabase.from("notifications").insert({
+      user_id: r.user_id,
+      title: "✅ Funding Approved",
+      body: `Your ₦${Number(r.amount).toLocaleString()} funding request has been approved. Wallet credited instantly.`,
+    });
 
     await logAdminAction(supabase, "approve_deposit", "funding_request", r.id, { amount: r.amount, user_id: r.user_id });
     toast.success(`✅ Credited ${fmtNaira(r.amount)} to @${r.profile?.username}`);
@@ -101,10 +116,11 @@ export default function ReceiptQueue() {
     const { error } = await supabase.from("funding_requests").update({ status: "rejected", reviewed_at: new Date().toISOString(), note: reason }).eq("id", r.id);
     if (error) return toast.error(error.message);
 
-    await supabase.from("notifications").insert({
+    // Send rejection notification to user
+    const { error: e2 } = await supabase.from("notifications").insert({
       user_id: r.user_id,
-      title: "Funding rejected",
-      body: `Your ₦${Number(r.amount).toLocaleString()} funding request was rejected: ${reason}`,
+      title: "❌ Funding Rejected",
+      body: `Your ₦${Number(r.amount).toLocaleString()} funding request was rejected. Reason: ${reason}`,
     });
 
     await logAdminAction(supabase, "reject_deposit", "funding_request", r.id, { reason });
@@ -123,10 +139,16 @@ export default function ReceiptQueue() {
     if (selectedReceipts.size === 0) return toast.error("No receipts selected");
     const toApprove = (data || []).filter((r) => selectedReceipts.has(r.id));
 
+    let approved = 0;
     for (const receipt of toApprove) {
-      await approve(receipt);
+      try {
+        await approve(receipt);
+        approved++;
+      } catch (err) {
+        console.error("Error approving receipt:", err);
+      }
     }
-    toast.success(`✅ Approved ${toApprove.length} receipt(s)`);
+    toast.success(`✅ Approved ${approved}/${toApprove.length} receipt(s)`);
     setSelectedReceipts(new Set());
   }
 
