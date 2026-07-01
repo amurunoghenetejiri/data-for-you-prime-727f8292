@@ -1,0 +1,35 @@
+<svg viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="d4mGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#10b981;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#059669;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="d4mGradientLight" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#34d399;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#10b981;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background circle -->
+  <circle cx="128" cy="128" r="124" fill="url(#d4mGradient)" />
+  
+  <!-- Inner circle with lighter gradient -->
+  <circle cx="128" cy="128" r="115" fill="url(#d4mGradientLight)" opacity="0.2" />
+  
+  <!-- Main icon: stylized upward arrow representing growth/data flow -->
+  <g transform="translate(128, 128)">
+    <!-- Arrow stem -->
+    <path d="M 0 -40 L 0 30" stroke="white" stroke-width="12" stroke-linecap="round" fill="none" />
+    
+    <!-- Arrow head -->
+    <path d="M -20 10 L 0 -5 L 20 10" stroke="white" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+    
+    <!-- Data dots representing connectivity -->
+    <circle cx="-25" cy="-25" r="4" fill="white" opacity="0.9" />
+    <circle cx="0" cy="-35" r="4" fill="white" />
+    <circle cx="25" cy="-25" r="4" fill="white" opacity="0.9" />
+    
+    <!-- Subtle wave pattern at bottom -->
+    <path d="M -30 35 Q -15 30 0 35 Q 15 40 30 35" stroke="white" stroke-width="3" fill="none" opacity="0.6" stroke-linecap="round" />
+  </g>
+</svg>
