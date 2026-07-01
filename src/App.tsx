@@ -40,6 +40,8 @@ import AdminProducts from "./pages/admin/Products";
 import AdminDataPlans from "./pages/admin/DataPlans";
 import AdminAuditLogs from "./pages/admin/AuditLogs";
 import AdminSettings from "./pages/admin/Settings";
+import AdminPaymentSettings from "./pages/admin/PaymentSettings";
+import AdminActivityCenter from "./pages/admin/ActivityCenter";
 import AdminBroadcast from "./pages/admin/Notifications";
 import { KycPage, ReportsPage, AdminAccountsPage, SecurityPage, SupportPage, DatabasePage } from "./pages/admin/Misc";
 
@@ -66,6 +68,8 @@ const App = () => (
               <Route path="reports" element={<ReportsPage />} />
               <Route path="notifications" element={<AdminBroadcast />} />
               <Route path="settings" element={<AdminSettings />} />
+              <Route path="payment-settings" element={<AdminPaymentSettings />} />
+              <Route path="activity" element={<AdminActivityCenter />} />
               <Route path="accounts" element={<AdminAccountsPage />} />
               <Route path="audit" element={<AdminAuditLogs />} />
               <Route path="security" element={<SecurityPage />} />

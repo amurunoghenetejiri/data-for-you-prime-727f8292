@@ -31,6 +31,27 @@ export default function Wallet() {
   const recent = transactions.slice(0, 6);
   const [searchParams, setSearchParams] = useSearchParams();
 
+  // Live payment configuration (admin-controlled, real-time)
+  const [paystackEnabled, setPaystackEnabled] = useState(true);
+  const [manualEnabled, setManualEnabled] = useState(true);
+  const [payBanks, setPayBanks] = useState<Array<{ id: string; bank_name: string; account_name: string; account_number: string; is_default: boolean; instructions: string | null }>>([]);
+  useEffect(() => {
+    const load = async () => {
+      const { data: s } = await supabase.from("app_settings").select("paystack_enabled, manual_bank_enabled").eq("id", 1).maybeSingle();
+      if (s) { setPaystackEnabled(s.paystack_enabled !== false); setManualEnabled(s.manual_bank_enabled !== false); }
+      const { data: b } = await supabase.from("payment_bank_accounts").select("id, bank_name, account_name, account_number, is_default, instructions").eq("is_active", true).order("is_default", { ascending: false }).order("sort_order");
+      setPayBanks((b || []) as any);
+    };
+    load();
+    const ch = supabase.channel("wallet-pay-sync")
+      .on("postgres_changes", { event: "*", schema: "public", table: "payment_bank_accounts" }, load)
+      .on("postgres_changes", { event: "*", schema: "public", table: "app_settings" }, load)
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, []);
+  const activeBank = payBanks.find((b) => b.is_default) || payBanks[0];
+
+
   // Paystack return verification
   useEffect(() => {
     const ref = searchParams.get("paystack_ref");
@@ -204,23 +225,29 @@ export default function Wallet() {
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6 mt-6">
+        {manualEnabled && (
         <Card className="p-6 shadow-card border-2 border-primary/20 hover-lift">
           <div className="flex items-center gap-3 mb-4">
             <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white grid place-items-center shadow-md"><Building2 className="h-5 w-5" /></div>
             <div><h3 className="font-semibold text-lg">🏦 Fund via Bank Transfer</h3><p className="text-xs text-muted-foreground">Upload receipt for review</p></div>
           </div>
-          <p className="text-sm text-muted-foreground mb-4">Send any amount to the account below. Your wallet is credited automatically.</p>
+          <p className="text-sm text-muted-foreground mb-4">Send any amount to the account below. Your wallet is credited once approved.</p>
           <div className="space-y-2 text-sm bg-muted/40 rounded-xl p-4">
-            <Row label="Bank">{settings.bankName}</Row>
-            <Row label="Account name">{settings.accountName}</Row>
-            <Row label="Account number"><span className="flex items-center gap-2 font-mono">{settings.accountNumber}<Copy className="h-3.5 w-3.5 cursor-pointer hover:text-primary" onClick={() => { navigator.clipboard.writeText(settings.accountNumber); toast.success("Copied"); }} /></span></Row>
-            <Row label="USSD">{settings.ussdCode}</Row>
+            <Row label="Bank">{activeBank?.bank_name || settings.bankName}</Row>
+            <Row label="Account name">{activeBank?.account_name || settings.accountName}</Row>
+            <Row label="Account number"><span className="flex items-center gap-2 font-mono">{activeBank?.account_number || settings.accountNumber}<Copy className="h-3.5 w-3.5 cursor-pointer hover:text-primary" onClick={() => { navigator.clipboard.writeText(activeBank?.account_number || settings.accountNumber); toast.success("Copied"); }} /></span></Row>
+            {activeBank?.instructions && <p className="text-xs text-muted-foreground pt-1 border-t border-border/50">{activeBank.instructions}</p>}
           </div>
-          <Button variant="outline" size="sm" className="mt-3 w-full" onClick={() => { navigator.clipboard.writeText(settings.accountNumber); toast.success("Account number copied!"); }}>
+          {payBanks.length > 1 && (
+            <div className="mt-3 text-xs text-muted-foreground">Other accounts: {payBanks.filter(b=>b.id!==activeBank?.id).map(b=>b.bank_name).join(", ")}</div>
+          )}
+          <Button variant="outline" size="sm" className="mt-3 w-full" onClick={() => { navigator.clipboard.writeText(activeBank?.account_number || settings.accountNumber); toast.success("Account number copied!"); }}>
             <Copy className="h-4 w-4 mr-2" />Copy Account Number
           </Button>
         </Card>
+        )}
 
+        {paystackEnabled && (
         <Card className="p-6 shadow-card border-2 border-emerald-500/20 hover-lift bg-gradient-to-br from-card to-emerald-500/5">
           <div className="flex items-center gap-3 mb-4">
             <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white grid place-items-center shadow-md"><CreditCard className="h-5 w-5" /></div>
@@ -238,6 +265,7 @@ export default function Wallet() {
           </Button>
           <p className="text-[11px] text-muted-foreground mt-2 text-center">Secure checkout · Cards, USSD, Bank Transfer</p>
         </Card>
+        )}
       </div>
 
       <Card className="p-6 shadow-card mt-6">

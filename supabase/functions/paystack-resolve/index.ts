@@ -1,5 +1,6 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors'
 import { createClient } from 'npm:@supabase/supabase-js@2'
+import { getActivePaystackSecret } from '../_shared/paystack.ts'
 
 const KNOWN_CODES: Record<string, string> = {
   'Access Bank': '044', 'GTBank': '058', 'Guaranty Trust Bank': '058',
@@ -77,7 +78,7 @@ Deno.serve(async (req) => {
       await logAttempt(userId, { bank_name, account_number, success: false, error_message: 'Invalid account number' })
       return jsonResponse({ error: 'Enter a valid 10-digit account number' }, 400)
     }
-    const secret = Deno.env.get('PAYSTACK_SECRET_KEY')
+    const { secret } = await getActivePaystackSecret()
     if (!secret) {
       await logAttempt(userId, { bank_name, account_number, success: false, error_message: 'Paystack not configured' })
       return jsonResponse({ error: 'Bank verification is temporarily unavailable. Please try again later.' }, 503)
