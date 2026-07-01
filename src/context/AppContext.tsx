@@ -187,15 +187,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return () => sub.subscription.unsubscribe();
   }, []);
 
-  // Realtime: wallet, transactions, notifications
+  // Realtime: wallet, transactions, notifications - FIXED
   useEffect(() => {
     if (!user?.id) return;
+    
     const ch = supabase
       .channel(`user-${user.id}`)
+      // Wallet updates
       .on("postgres_changes", { event: "*", schema: "public", table: "wallets", filter: `user_id=eq.${user.id}` }, (p) => {
         const bal = (p.new as any)?.balance;
-        if (bal != null) setWallet(Number(bal));
+        if (bal != null) {
+          setWallet(Number(bal));
+        }
       })
+      // Transaction inserts
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "transactions", filter: `user_id=eq.${user.id}` }, (p) => {
         const t: any = p.new;
         setTransactions((cur) => [{
@@ -204,11 +209,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
           network: t.meta?.network, phone: t.meta?.phone, meta: t.meta,
         }, ...cur]);
       })
+      // Notification inserts - SHOW TOAST
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` }, (p) => {
         const n: any = p.new;
-        setNotifications((cur) => [{ id: n.id, title: n.title, body: n.body, date: n.created_at, read: !!n.read }, ...cur]);
+        const newNotif = { id: n.id, title: n.title, body: n.body, date: n.created_at, read: !!n.read };
+        setNotifications((cur) => [newNotif, ...cur]);
+        
+        // Show toast notification to user immediately
+        if (n.title.includes("✅") || n.title.includes("Approved")) {
+          toast.success(n.title, { description: n.body });
+        } else if (n.title.includes("❌") || n.title.includes("Rejected")) {
+          toast.error(n.title, { description: n.body });
+        } else {
+          toast.info(n.title, { description: n.body });
+        }
       })
       .subscribe();
+    
     return () => { supabase.removeChannel(ch); };
   }, [user?.id]);
 
