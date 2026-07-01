@@ -137,6 +137,8 @@ export type Database = {
           bank_account_number: string
           bank_name: string
           id: number
+          manual_bank_enabled: boolean
+          paystack_enabled: boolean
           paystack_mode: string
           paystack_public_key: string | null
           updated_at: string
@@ -146,6 +148,8 @@ export type Database = {
           bank_account_number?: string
           bank_name?: string
           id?: number
+          manual_bank_enabled?: boolean
+          paystack_enabled?: boolean
           paystack_mode?: string
           paystack_public_key?: string | null
           updated_at?: string
@@ -155,6 +159,8 @@ export type Database = {
           bank_account_number?: string
           bank_name?: string
           id?: number
+          manual_bank_enabled?: boolean
+          paystack_enabled?: boolean
           paystack_mode?: string
           paystack_public_key?: string | null
           updated_at?: string
@@ -607,6 +613,48 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_bank_accounts: {
+        Row: {
+          account_name: string
+          account_number: string
+          account_type: string | null
+          bank_name: string
+          created_at: string
+          id: string
+          instructions: string | null
+          is_active: boolean
+          is_default: boolean
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          account_name: string
+          account_number: string
+          account_type?: string | null
+          bank_name: string
+          created_at?: string
+          id?: string
+          instructions?: string | null
+          is_active?: boolean
+          is_default?: boolean
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          account_name?: string
+          account_number?: string
+          account_type?: string | null
+          bank_name?: string
+          created_at?: string
+          id?: string
+          instructions?: string | null
+          is_active?: boolean
+          is_default?: boolean
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       products: {
         Row: {
           cashback_percent: number
@@ -697,6 +745,27 @@ export type Database = {
         }
         Relationships: []
       }
+      secure_secrets: {
+        Row: {
+          name: string
+          updated_at: string
+          updated_by: string | null
+          value: string
+        }
+        Insert: {
+          name: string
+          updated_at?: string
+          updated_by?: string | null
+          value: string
+        }
+        Update: {
+          name?: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: string
+        }
+        Relationships: []
+      }
       transactions: {
         Row: {
           amount: number
@@ -730,6 +799,42 @@ export type Database = {
           status?: string
           type?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      user_activity_log: {
+        Row: {
+          action: string
+          category: string
+          created_at: string
+          details: Json | null
+          id: string
+          ip_address: string | null
+          status: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          category: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          ip_address?: string | null
+          status?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          category?: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          ip_address?: string | null
+          status?: string | null
+          user_agent?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }
