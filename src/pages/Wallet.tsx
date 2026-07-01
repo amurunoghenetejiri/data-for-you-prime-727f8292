@@ -254,11 +254,48 @@ export default function Wallet() {
               <button key={a} onClick={() => setPsAmount(a)} className={`text-xs rounded-lg py-2 border ${psAmount === a ? "border-emerald-500 bg-emerald-500/10" : "border-border hover:bg-muted"}`}>₦{a.toLocaleString()}</button>
             ))}
           </div>
+      <div className="grid lg:grid-cols-2 gap-6 mt-6">
+        {manualEnabled && (
+        <Card className="p-6 shadow-card border-2 border-primary/20 hover-lift">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white grid place-items-center shadow-md"><Building2 className="h-5 w-5" /></div>
+            <div><h3 className="font-semibold text-lg">🏦 Fund via Bank Transfer</h3><p className="text-xs text-muted-foreground">Upload receipt for review</p></div>
+          </div>
+          <p className="text-sm text-muted-foreground mb-4">Send any amount to the account below. Your wallet is credited once approved.</p>
+          <div className="space-y-2 text-sm bg-muted/40 rounded-xl p-4">
+            <Row label="Bank">{activeBank?.bank_name || settings.bankName}</Row>
+            <Row label="Account name">{activeBank?.account_name || settings.accountName}</Row>
+            <Row label="Account number"><span className="flex items-center gap-2 font-mono">{activeBank?.account_number || settings.accountNumber}<Copy className="h-3.5 w-3.5 cursor-pointer hover:text-primary" onClick={() => { navigator.clipboard.writeText(activeBank?.account_number || settings.accountNumber); toast.success("Copied"); }} /></span></Row>
+            {activeBank?.instructions && <p className="text-xs text-muted-foreground pt-1 border-t border-border/50">{activeBank.instructions}</p>}
+          </div>
+          {payBanks.length > 1 && (
+            <div className="mt-3 text-xs text-muted-foreground">Other accounts: {payBanks.filter(b=>b.id!==activeBank?.id).map(b=>b.bank_name).join(", ")}</div>
+          )}
+          <Button variant="outline" size="sm" className="mt-3 w-full" onClick={() => { navigator.clipboard.writeText(activeBank?.account_number || settings.accountNumber); toast.success("Account number copied!"); }}>
+            <Copy className="h-4 w-4 mr-2" />Copy Account Number
+          </Button>
+        </Card>
+        )}
+
+        {paystackEnabled && (
+        <Card className="p-6 shadow-card border-2 border-emerald-500/20 hover-lift bg-gradient-to-br from-card to-emerald-500/5">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white grid place-items-center shadow-md"><CreditCard className="h-5 w-5" /></div>
+            <div><h3 className="font-semibold text-lg">💳 Fund via Paystack</h3><p className="text-xs text-muted-foreground">Instant — wallet credited automatically</p></div>
+          </div>
+          <Label className="mb-1 block text-xs">Amount (₦) — minimum ₦100</Label>
+          <Input type="number" min={100} value={psAmount} onChange={(e) => setPsAmount(Number(e.target.value) || 0)} />
+          <div className="grid grid-cols-4 gap-2 mt-3">
+            {[1000, 2000, 5000, 10000].map((a) => (
+              <button key={a} onClick={() => setPsAmount(a)} className={`text-xs rounded-lg py-2 border ${psAmount === a ? "border-emerald-500 bg-emerald-500/10" : "border-border hover:bg-muted"}`}>₦{a.toLocaleString()}</button>
+            ))}
+          </div>
           <Button onClick={payWithPaystack} disabled={psLoading} className="w-full mt-4 bg-gradient-to-r from-emerald-500 to-teal-600 hover:opacity-90 text-white">
             {psLoading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Initializing…</> : <>Pay ₦{psAmount.toLocaleString()} with Paystack</>}
           </Button>
           <p className="text-[11px] text-muted-foreground mt-2 text-center">Secure checkout · Cards, USSD, Bank Transfer</p>
         </Card>
+        )}
       </div>
 
       <Card className="p-6 shadow-card mt-6">
