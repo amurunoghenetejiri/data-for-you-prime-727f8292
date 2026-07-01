@@ -139,8 +139,10 @@ export type Database = {
           id: number
           manual_bank_enabled: boolean
           paystack_enabled: boolean
+          paystack_live_public_key: string | null
           paystack_mode: string
           paystack_public_key: string | null
+          paystack_test_public_key: string | null
           updated_at: string
         }
         Insert: {
@@ -150,8 +152,10 @@ export type Database = {
           id?: number
           manual_bank_enabled?: boolean
           paystack_enabled?: boolean
+          paystack_live_public_key?: string | null
           paystack_mode?: string
           paystack_public_key?: string | null
+          paystack_test_public_key?: string | null
           updated_at?: string
         }
         Update: {
@@ -161,8 +165,10 @@ export type Database = {
           id?: number
           manual_bank_enabled?: boolean
           paystack_enabled?: boolean
+          paystack_live_public_key?: string | null
           paystack_mode?: string
           paystack_public_key?: string | null
+          paystack_test_public_key?: string | null
           updated_at?: string
         }
         Relationships: []
