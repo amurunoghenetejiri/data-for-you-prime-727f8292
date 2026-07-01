@@ -31,6 +31,27 @@ export default function Wallet() {
   const recent = transactions.slice(0, 6);
   const [searchParams, setSearchParams] = useSearchParams();
 
+  // Live payment configuration (admin-controlled, real-time)
+  const [paystackEnabled, setPaystackEnabled] = useState(true);
+  const [manualEnabled, setManualEnabled] = useState(true);
+  const [payBanks, setPayBanks] = useState<Array<{ id: string; bank_name: string; account_name: string; account_number: string; is_default: boolean; instructions: string | null }>>([]);
+  useEffect(() => {
+    const load = async () => {
+      const { data: s } = await supabase.from("app_settings").select("paystack_enabled, manual_bank_enabled").eq("id", 1).maybeSingle();
+      if (s) { setPaystackEnabled(s.paystack_enabled !== false); setManualEnabled(s.manual_bank_enabled !== false); }
+      const { data: b } = await supabase.from("payment_bank_accounts").select("id, bank_name, account_name, account_number, is_default, instructions").eq("is_active", true).order("is_default", { ascending: false }).order("sort_order");
+      setPayBanks((b || []) as any);
+    };
+    load();
+    const ch = supabase.channel("wallet-pay-sync")
+      .on("postgres_changes", { event: "*", schema: "public", table: "payment_bank_accounts" }, load)
+      .on("postgres_changes", { event: "*", schema: "public", table: "app_settings" }, load)
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, []);
+  const activeBank = payBanks.find((b) => b.is_default) || payBanks[0];
+
+
   // Paystack return verification
   useEffect(() => {
     const ref = searchParams.get("paystack_ref");
