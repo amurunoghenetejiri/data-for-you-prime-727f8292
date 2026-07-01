@@ -1,4 +1,5 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors'
+import { getActivePaystackSecret } from '../_shared/paystack.ts'
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
@@ -7,7 +8,7 @@ Deno.serve(async (req) => {
     if (!amount || amount < 100 || !email) {
       return new Response(JSON.stringify({ error: 'amount (>=100) and email are required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     }
-    const secret = Deno.env.get('PAYSTACK_SECRET_KEY')
+    const { secret } = await getActivePaystackSecret()
     if (!secret) return new Response(JSON.stringify({ error: 'Paystack not configured' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     const reference = `D4M-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`
     const origin = req.headers.get('origin') ?? ''
