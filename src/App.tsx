@@ -36,6 +36,7 @@ import AdminUserDetail from "./pages/admin/UserDetail";
 import AdminTransactions from "./pages/admin/Transactions";
 import AdminDeposits from "./pages/admin/Deposits";
 import AdminWithdrawals from "./pages/admin/Withdrawals";
+import ReceiptQueue from "./pages/admin/ReceiptQueue";
 import AdminProducts from "./pages/admin/Products";
 import AdminDataPlans from "./pages/admin/DataPlans";
 import AdminAuditLogs from "./pages/admin/AuditLogs";
@@ -61,6 +62,7 @@ const App = () => (
               <Route path="users/:id" element={<AdminUserDetail />} />
               <Route path="transactions" element={<AdminTransactions />} />
               <Route path="deposits" element={<AdminDeposits />} />
+              <Route path="receipt-queue" element={<ReceiptQueue />} />
               <Route path="withdrawals" element={<AdminWithdrawals />} />
               <Route path="kyc" element={<KycPage />} />
               <Route path="products" element={<AdminProducts />} />
