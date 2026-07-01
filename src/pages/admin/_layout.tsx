@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   LayoutDashboard, Users, Receipt, ArrowDownToLine, ArrowUpFromLine, BadgeCheck,
   Package, BarChart3, Bell, Settings, ShieldCheck, FileClock, Lock, LifeBuoy,
-  Database, LogOut, Menu, X, Sparkles, Wifi, CreditCard, Activity
+  Database, LogOut, Menu, X, Sparkles, Wifi, CreditCard, Activity, Inbox
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ const nav = [
   { to: "/admin/users", label: "User Management", icon: Users },
   { to: "/admin/transactions", label: "Transactions", icon: Receipt },
   { to: "/admin/deposits", label: "Deposits", icon: ArrowDownToLine },
+  { to: "/admin/receipt-queue", label: "Receipt Queue", icon: Inbox },
   { to: "/admin/withdrawals", label: "Withdrawals", icon: ArrowUpFromLine },
   { to: "/admin/kyc", label: "KYC", icon: BadgeCheck },
   { to: "/admin/products", label: "Product Management", icon: Package },
