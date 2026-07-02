@@ -310,9 +310,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
     theme,
     toggleTheme: () => setTheme((t) => (t === "dark" ? "light" : "dark")),
     fundingRequests,
-    submitFundingRequest: (r) => {
-      if (!user) return;
-      setFundingRequests((cur) => [{ ...r, id: crypto.randomUUID(), username: user.username, date: new Date().toISOString(), status: "pending" }, ...cur]);
+    pendingFunding: fundingRequests.some((f) => f.status === "pending"),
+    submitFundingRequest: async ({ amount, bank, receiptFile }) => {
+      if (!user?.id) throw new Error("Please log in first");
+      if (!receiptFile) throw new Error("Receipt file is required");
+      const reference = "FR-" + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 6).toUpperCase();
+      const ext = receiptFile.name.split(".").pop() || "bin";
+      const path = `${user.id}/${reference}.${ext}`;
+      const up = await supabase.storage.from("receipts").upload(path, receiptFile, { upsert: false, contentType: receiptFile.type });
+      if (up.error) throw new Error(up.error.message);
+      const { data: signed } = await supabase.storage.from("receipts").createSignedUrl(path, 60 * 60 * 24 * 30);
+      const receipt_url = signed?.signedUrl || path;
+      const { error } = await supabase.from("funding_requests").insert({
+        user_id: user.id, amount, bank, reference, provider: "manual", status: "pending", receipt_url,
+      } as any);
+      if (error) throw new Error(error.message);
+      // Update local mirror for immediate UI
+      setFundingRequests((cur) => [{ id: reference, username: user.username, amount, bank, receiptName: receiptFile.name, receiptDataUrl: receipt_url, date: new Date().toISOString(), status: "pending" }, ...cur]);
     },
     approveFunding: (id) => setFundingRequests((cur) => cur.map((r) => (r.id === id ? { ...r, status: "approved" } : r))),
     rejectFunding: (id) => setFundingRequests((cur) => cur.map((r) => (r.id === id ? { ...r, status: "rejected" } : r))),
