@@ -1,32 +1,60 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors'
+import { createClient } from 'npm:@supabase/supabase-js@2.45.0'
 import { getActivePaystackSecret } from '../_shared/paystack.ts'
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
   try {
     const { amount, email, username } = await req.json()
-    if (!amount || amount < 100 || !email) {
-      return new Response(JSON.stringify({ error: 'amount (>=100) and email are required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
-    }
+    if (!amount || amount < 100 || !email) return json({ error: 'amount (>=100) and email are required' }, 400)
+
     const { secret } = await getActivePaystackSecret()
-    if (!secret) return new Response(JSON.stringify({ error: 'Paystack not configured' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+    if (!secret) return json({ error: 'Paystack not configured' }, 500)
+
     const reference = `D4M-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`
     const origin = req.headers.get('origin') ?? ''
+
+    // Resolve caller user_id from Auth header if present
+    const authHeader = req.headers.get('Authorization') || ''
+    const url = Deno.env.get('SUPABASE_URL')!
+    const svcKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    const svc = createClient(url, svcKey)
+    let userId: string | null = null
+    const token = authHeader.replace('Bearer ', '').trim()
+    if (token) {
+      const { data: u } = await svc.auth.getUser(token)
+      userId = u?.user?.id ?? null
+    }
+    if (!userId) {
+      const { data: prof } = await svc.from('profiles').select('id').eq('email', email).maybeSingle()
+      userId = prof?.id ?? null
+    }
+
+    // Persist a pending funding_request so it's tracked even if user drops off
+    if (userId) {
+      await svc.from('funding_requests').insert({
+        user_id: userId, amount: Number(amount), reference,
+        provider: 'paystack', status: 'pending', bank: 'Paystack',
+      })
+    }
+
     const r = await fetch('https://api.paystack.co/transaction/initialize', {
       method: 'POST',
       headers: { Authorization: `Bearer ${secret}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        email,
-        amount: Math.round(Number(amount) * 100),
-        reference,
+        email, amount: Math.round(Number(amount) * 100), reference,
         callback_url: `${origin}/wallet?paystack_ref=${reference}`,
-        metadata: { username, source: 'data4me-wallet' },
+        metadata: { username, user_id: userId, source: 'data4me-wallet' },
       }),
     })
     const data = await r.json()
-    if (!data?.status) return new Response(JSON.stringify({ error: data?.message || 'Init failed' }), { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
-    return new Response(JSON.stringify({ authorization_url: data.data.authorization_url, reference: data.data.reference }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+    if (!data?.status) return json({ error: data?.message || 'Init failed' }, 502)
+    return json({ authorization_url: data.data.authorization_url, reference: data.data.reference })
   } catch (e) {
-    return new Response(JSON.stringify({ error: String(e) }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+    return json({ error: String(e) }, 500)
   }
 })
+
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+}
