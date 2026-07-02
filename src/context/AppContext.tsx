@@ -231,6 +231,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
           toast.info(n.title, { description: n.body });
         }
       })
+      // Funding request status updates (approve/reject/cancel)
+      .on("postgres_changes", { event: "*", schema: "public", table: "funding_requests", filter: `user_id=eq.${user.id}` }, (p) => {
+        const f: any = p.new || p.old;
+        if (!f) return;
+        setFundingRequests((cur) => {
+          const others = cur.filter((x) => x.id !== f.id);
+          if (p.eventType === "DELETE") return others;
+          return [{
+            id: f.id, username: user.username, amount: Number(f.amount), bank: f.bank || f.provider,
+            receiptName: f.reference, receiptDataUrl: f.receipt_url || undefined,
+            date: f.created_at, status: f.status,
+          }, ...others];
+        });
+      })
       .subscribe();
     
     return () => { supabase.removeChannel(ch); };
