@@ -23,11 +23,8 @@ export default function AdminDeposits() {
   });
 
   async function approve(r: any) {
-    const { error: e1 } = await supabase.from("funding_requests").update({ status: "approved", reviewed_at: new Date().toISOString() }).eq("id", r.id);
-    if (e1) return toast.error(e1.message);
-    const { error: e2 } = await supabase.rpc("credit_wallet", { _user_id: r.user_id, _amount: r.amount, _reference: r.reference, _description: `Deposit approved` });
-    if (e2) return toast.error(e2.message);
-    await logAdminAction(supabase, "approve_deposit", "funding_request", r.id, { amount: r.amount, user_id: r.user_id });
+    const { error } = await supabase.rpc("approve_funding", { _id: r.id, _remark: null });
+    if (error) return toast.error(error.message);
     toast.success(`Credited ${fmtNaira(r.amount)} to @${r.profile?.username}`);
     qc.invalidateQueries({ queryKey: ["admin"] });
     refetch();
@@ -36,22 +33,30 @@ export default function AdminDeposits() {
   async function reject(r: any) {
     const reason = prompt("Reason for rejection (shown to user):", "Receipt could not be verified.");
     if (reason === null) return;
-    const { error } = await supabase.from("funding_requests").update({ status: "rejected", reviewed_at: new Date().toISOString(), note: reason }).eq("id", r.id);
+    const { error } = await supabase.rpc("reject_funding", { _id: r.id, _remark: reason });
     if (error) return toast.error(error.message);
-    await supabase.from("notifications").insert({ user_id: r.user_id, title: "Funding rejected", body: `Your ₦${Number(r.amount).toLocaleString()} funding request was rejected: ${reason}` });
-    await logAdminAction(supabase, "reject_deposit", "funding_request", r.id, { reason });
     toast.info("Rejected and user notified");
     refetch();
   }
 
   async function cancel(r: any) {
     if (!confirm("Cancel this deposit request?")) return;
-    const { error } = await supabase.from("funding_requests").update({ status: "cancelled", reviewed_at: new Date().toISOString() }).eq("id", r.id);
+    const { error } = await supabase.rpc("cancel_funding", { _id: r.id, _remark: "Cancelled by admin" });
     if (error) return toast.error(error.message);
-    await supabase.from("notifications").insert({ user_id: r.user_id, title: "Funding cancelled", body: `Your ₦${Number(r.amount).toLocaleString()} funding request was cancelled by admin.` });
-    await logAdminAction(supabase, "cancel_deposit", "funding_request", r.id, {});
     toast.info("Cancelled");
     refetch();
+  }
+
+  async function openReceipt(r: any) {
+    if (!r.receipt_url) return toast.error("No receipt attached");
+    // If stored as a storage path (uid/filename.ext), generate a signed URL
+    if (/^https?:\/\//.test(r.receipt_url)) {
+      window.open(r.receipt_url, "_blank");
+      return;
+    }
+    const { data, error } = await supabase.storage.from("receipts").createSignedUrl(r.receipt_url, 60 * 10);
+    if (error || !data?.signedUrl) return toast.error(error?.message || "Could not open receipt");
+    window.open(data.signedUrl, "_blank");
   }
 
   return (
