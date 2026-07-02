@@ -146,12 +146,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
       supabase.from("user_roles").select("role").eq("user_id", uid),
       supabase.from("funding_requests").select("*").eq("user_id", uid).order("created_at", { ascending: false }).limit(20),
     ]);
+    const p = profileRes.data;
     setFundingRequests(((frRes.data as any[]) || []).map((f) => ({
       id: f.id, username: p?.username || "", amount: Number(f.amount), bank: f.bank || f.provider,
       receiptName: f.reference, receiptDataUrl: f.receipt_url || undefined,
       date: f.created_at, status: f.status,
     })));
-    const p = profileRes.data;
     setUser({
       id: uid,
       name: p?.full_name || session.user.email?.split("@")[0] || "User",
