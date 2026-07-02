@@ -82,7 +82,7 @@ export default function AdminDeposits() {
                     <td className="px-4 py-3 text-right tabular-nums text-white font-semibold">{fmtNaira(r.amount)}</td>
                     <td className="px-4 py-3 text-slate-300 text-xs">{r.bank || r.provider}</td>
                     <td className="px-4 py-3 font-mono text-xs text-slate-400">{r.reference}</td>
-                    <td className="px-4 py-3">{r.receipt_url ? <a href={r.receipt_url} target="_blank" rel="noreferrer" className="text-violet-300 hover:underline text-xs">View</a> : "—"}</td>
+                    <td className="px-4 py-3">{r.receipt_url ? <button onClick={() => openReceipt(r)} className="text-violet-300 hover:underline text-xs">View</button> : "—"}</td>
                     <td className="px-4 py-3"><StatusPill status={r.status} /></td>
                     <td className="px-4 py-3 text-right">
                       {r.status === "pending" && (
