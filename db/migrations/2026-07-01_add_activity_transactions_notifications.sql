@@ -1,5 +1,5 @@
 -- Migration: add activity, transactions, receipts, notifications, messages, admin_audit, message_deliveries
--- Run on Lovable Cloud Postgres. Review before running; BACKUP first.
+-- Run on DATA4ME Postgres. Review before running; BACKUP first.
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
