@@ -19,7 +19,7 @@ const NIGERIAN_BANKS = [
 ];
 
 export default function Wallet() {
-  const { wallet, transactions, settings, user, openAuth, hideBalance, toggleHideBalance, submitFundingRequest, fundWallet, pushNotification } = useApp();
+  const { wallet, transactions, settings, user, openAuth, hideBalance, toggleHideBalance, submitFundingRequest, pushNotification, pendingFunding, refreshUser } = useApp();
   const [amount, setAmount] = useState(2000);
   const [psAmount, setPsAmount] = useState(2000);
   const [psLoading, setPsLoading] = useState(false);
