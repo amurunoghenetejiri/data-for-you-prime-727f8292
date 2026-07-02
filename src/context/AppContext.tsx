@@ -138,13 +138,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return;
     }
     const uid = session.user.id;
-    const [profileRes, walletRes, txRes, notifRes, rolesRes] = await Promise.all([
+    const [profileRes, walletRes, txRes, notifRes, rolesRes, frRes] = await Promise.all([
       supabase.from("profiles").select("*").eq("id", uid).maybeSingle(),
       supabase.from("wallets").select("balance").eq("user_id", uid).maybeSingle(),
       supabase.from("transactions").select("*").eq("user_id", uid).order("created_at", { ascending: false }).limit(100),
       supabase.from("notifications").select("*").eq("user_id", uid).order("created_at", { ascending: false }).limit(50),
       supabase.from("user_roles").select("role").eq("user_id", uid),
+      supabase.from("funding_requests").select("*").eq("user_id", uid).order("created_at", { ascending: false }).limit(20),
     ]);
+    setFundingRequests(((frRes.data as any[]) || []).map((f) => ({
+      id: f.id, username: p?.username || "", amount: Number(f.amount), bank: f.bank || f.provider,
+      receiptName: f.reference, receiptDataUrl: f.receipt_url || undefined,
+      date: f.created_at, status: f.status,
+    })));
     const p = profileRes.data;
     setUser({
       id: uid,
