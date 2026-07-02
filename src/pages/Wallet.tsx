@@ -19,7 +19,7 @@ const NIGERIAN_BANKS = [
 ];
 
 export default function Wallet() {
-  const { wallet, transactions, settings, user, openAuth, hideBalance, toggleHideBalance, submitFundingRequest, fundWallet, pushNotification } = useApp();
+  const { wallet, transactions, settings, user, openAuth, hideBalance, toggleHideBalance, submitFundingRequest, pushNotification, pendingFunding, refreshUser } = useApp();
   const [amount, setAmount] = useState(2000);
   const [psAmount, setPsAmount] = useState(2000);
   const [psLoading, setPsLoading] = useState(false);
@@ -52,20 +52,17 @@ export default function Wallet() {
   const activeBank = payBanks.find((b) => b.is_default) || payBanks[0];
 
 
-  // Paystack return verification
+  // Paystack return verification — server credits the wallet, we only display result
   useEffect(() => {
     const ref = searchParams.get("paystack_ref");
     if (!ref || !user) return;
     (async () => {
-      const creditedRefs: string[] = JSON.parse(localStorage.getItem("d4m_paystack_credited") || "[]");
-      if (creditedRefs.includes(ref)) { setSearchParams({}); return; }
       toast.loading("Verifying Paystack payment…", { id: "psv" });
       const { data, error } = await supabase.functions.invoke("paystack-verify", { body: { reference: ref } });
       toast.dismiss("psv");
       if (error || !data?.success) { toast.error("Payment not confirmed yet. Please try again or contact support."); setSearchParams({}); return; }
-      fundWallet(Number(data.amount), `Paystack funding · ${ref}`);
+      await refreshUser();
       pushNotification({ title: "✅ Payment Successful", body: `Your Paystack payment of ₦${Number(data.amount).toLocaleString()} was successful and your wallet has been credited instantly.` });
-      localStorage.setItem("d4m_paystack_credited", JSON.stringify([...creditedRefs, ref]));
       toast.success(`Wallet credited with ₦${Number(data.amount).toLocaleString()}`);
       setSearchParams({});
     })();
@@ -88,26 +85,28 @@ export default function Wallet() {
     }
   }
 
-  function submitFunding() {
+  const [submitting, setSubmitting] = useState(false);
+  async function submitFunding() {
     if (!user) { openAuth("login"); return; }
+    if (pendingFunding) return toast.error("You already have a pending funding request. Wait for admin review.");
     if (amount < 100) return toast.error("Minimum funding is ₦100");
     if (!receipt) return toast.error("Please upload your payment receipt (JPG, PNG, or PDF)");
     const valid = ["image/jpeg", "image/png", "application/pdf"];
     if (!valid.includes(receipt.type)) return toast.error("Only JPG, PNG, or PDF receipts are allowed");
     if (receipt.size > 5 * 1024 * 1024) return toast.error("Receipt must be under 5MB");
-    const reader = new FileReader();
-    reader.onload = () => {
-      submitFundingRequest({
-        amount,
-        bank,
-        receiptName: receipt.name,
-        receiptDataUrl: typeof reader.result === "string" ? reader.result : undefined,
-      });
+    setSubmitting(true);
+    try {
+      await submitFundingRequest({ amount, bank, receiptFile: receipt });
       setStep("submitted");
       setOpen(true);
+      setReceipt(null);
+      if (fileRef.current) fileRef.current.value = "";
       toast.success("Receipt submitted. Wallet will credit once approved.");
-    };
-    reader.readAsDataURL(receipt);
+    } catch (e: any) {
+      toast.error(e.message || "Could not submit receipt");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   function printReceipt() {
@@ -196,14 +195,19 @@ export default function Wallet() {
           <button
             type="button"
             onClick={() => fileRef.current?.click()}
-            className="w-full p-3 rounded-lg border-2 border-dashed border-border hover:border-primary hover:bg-accent/40 transition text-sm flex items-center gap-2 justify-center"
+            disabled={pendingFunding || submitting}
+            className="w-full p-3 rounded-lg border-2 border-dashed border-border hover:border-primary hover:bg-accent/40 transition text-sm flex items-center gap-2 justify-center disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {receipt ? <FileCheck2 className="h-4 w-4 text-success" /> : <Upload className="h-4 w-4 text-muted-foreground" />}
-            <span className="truncate">{receipt ? receipt.name : "Click to upload your receipt"}</span>
+            <span className="truncate">{pendingFunding ? "Awaiting admin review…" : receipt ? receipt.name : "Click to upload your receipt"}</span>
           </button>
 
-          <Button onClick={submitFunding} className="w-full mt-4 bg-gradient-primary">Submit Funding</Button>
-          <p className="text-[11px] text-muted-foreground mt-2 text-center">Your payment receipt will be reviewed. You'll be notified once verified.</p>
+          <Button onClick={submitFunding} disabled={pendingFunding || submitting} className="w-full mt-4 bg-gradient-primary">
+            {submitting ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Uploading…</> : pendingFunding ? "Pending review" : "Submit Funding"}
+          </Button>
+          <p className="text-[11px] text-muted-foreground mt-2 text-center">
+            {pendingFunding ? "Upload re-enables after admin approves or rejects your last receipt." : "Your payment receipt will be reviewed. You'll be notified once verified."}
+          </p>
         </Card>
 
         <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setStep("idle"); }}>

@@ -59,7 +59,8 @@ interface AppState {
   toggleTheme: () => void;
 
   fundingRequests: FundingRequest[];
-  submitFundingRequest: (r: Omit<FundingRequest, "id" | "date" | "status" | "username">) => void;
+  pendingFunding: boolean;
+  submitFundingRequest: (r: { amount: number; bank: string; receiptFile?: File | null }) => Promise<void>;
   approveFunding: (id: string) => void;
   rejectFunding: (id: string) => void;
 
@@ -137,14 +138,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return;
     }
     const uid = session.user.id;
-    const [profileRes, walletRes, txRes, notifRes, rolesRes] = await Promise.all([
+    const [profileRes, walletRes, txRes, notifRes, rolesRes, frRes] = await Promise.all([
       supabase.from("profiles").select("*").eq("id", uid).maybeSingle(),
       supabase.from("wallets").select("balance").eq("user_id", uid).maybeSingle(),
       supabase.from("transactions").select("*").eq("user_id", uid).order("created_at", { ascending: false }).limit(100),
       supabase.from("notifications").select("*").eq("user_id", uid).order("created_at", { ascending: false }).limit(50),
       supabase.from("user_roles").select("role").eq("user_id", uid),
+      supabase.from("funding_requests").select("*").eq("user_id", uid).order("created_at", { ascending: false }).limit(20),
     ]);
     const p = profileRes.data;
+    setFundingRequests(((frRes.data as any[]) || []).map((f) => ({
+      id: f.id, username: p?.username || "", amount: Number(f.amount), bank: f.bank || f.provider,
+      receiptName: f.reference, receiptDataUrl: f.receipt_url || undefined,
+      date: f.created_at, status: f.status,
+    })));
     setUser({
       id: uid,
       name: p?.full_name || session.user.email?.split("@")[0] || "User",
@@ -223,6 +230,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
         } else {
           toast.info(n.title, { description: n.body });
         }
+      })
+      // Funding request status updates (approve/reject/cancel)
+      .on("postgres_changes", { event: "*", schema: "public", table: "funding_requests", filter: `user_id=eq.${user.id}` }, (p) => {
+        const f: any = p.new || p.old;
+        if (!f) return;
+        setFundingRequests((cur) => {
+          const others = cur.filter((x) => x.id !== f.id);
+          if (p.eventType === "DELETE") return others;
+          return [{
+            id: f.id, username: user.username, amount: Number(f.amount), bank: f.bank || f.provider,
+            receiptName: f.reference, receiptDataUrl: f.receipt_url || undefined,
+            date: f.created_at, status: f.status,
+          }, ...others];
+        });
       })
       .subscribe();
     
@@ -309,9 +330,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
     theme,
     toggleTheme: () => setTheme((t) => (t === "dark" ? "light" : "dark")),
     fundingRequests,
-    submitFundingRequest: (r) => {
-      if (!user) return;
-      setFundingRequests((cur) => [{ ...r, id: crypto.randomUUID(), username: user.username, date: new Date().toISOString(), status: "pending" }, ...cur]);
+    pendingFunding: fundingRequests.some((f) => f.status === "pending"),
+    submitFundingRequest: async ({ amount, bank, receiptFile }) => {
+      if (!user?.id) throw new Error("Please log in first");
+      if (!receiptFile) throw new Error("Receipt file is required");
+      const reference = "FR-" + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 6).toUpperCase();
+      const ext = receiptFile.name.split(".").pop() || "bin";
+      const path = `${user.id}/${reference}.${ext}`;
+      const up = await supabase.storage.from("receipts").upload(path, receiptFile, { upsert: false, contentType: receiptFile.type });
+      if (up.error) throw new Error(up.error.message);
+      const { data: signed } = await supabase.storage.from("receipts").createSignedUrl(path, 60 * 60 * 24 * 30);
+      const receipt_url = signed?.signedUrl || path;
+      const { error } = await supabase.from("funding_requests").insert({
+        user_id: user.id, amount, bank, reference, provider: "manual", status: "pending", receipt_url,
+      } as any);
+      if (error) throw new Error(error.message);
+      // Update local mirror for immediate UI
+      setFundingRequests((cur) => [{ id: reference, username: user.username, amount, bank, receiptName: receiptFile.name, receiptDataUrl: receipt_url, date: new Date().toISOString(), status: "pending" }, ...cur]);
     },
     approveFunding: (id) => setFundingRequests((cur) => cur.map((r) => (r.id === id ? { ...r, status: "approved" } : r))),
     rejectFunding: (id) => setFundingRequests((cur) => cur.map((r) => (r.id === id ? { ...r, status: "rejected" } : r))),

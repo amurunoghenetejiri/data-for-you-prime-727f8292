@@ -226,7 +226,7 @@ export default function ReceiptQueue() {
         ) : error ? (
           <ErrorBlock message={(error as any).message} onRetry={() => refetch()} />
         ) : !data?.length ? (
-          <EmptyBlock icon={Clock} title="Queue is empty" subtitle="All receipts have been reviewed!" />
+          <EmptyBlock icon={Clock} title="Queue is empty" body="All receipts have been reviewed!" />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
