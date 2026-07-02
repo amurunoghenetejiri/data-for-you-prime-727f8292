@@ -59,7 +59,8 @@ interface AppState {
   toggleTheme: () => void;
 
   fundingRequests: FundingRequest[];
-  submitFundingRequest: (r: Omit<FundingRequest, "id" | "date" | "status" | "username">) => void;
+  pendingFunding: boolean;
+  submitFundingRequest: (r: { amount: number; bank: string; receiptFile?: File | null }) => Promise<void>;
   approveFunding: (id: string) => void;
   rejectFunding: (id: string) => void;
 
