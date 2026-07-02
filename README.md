@@ -1,3 +1,3 @@
-# Welcome to your Lovable project
+# Welcome to your DATA4ME project
 
 TODO: Document your project here
