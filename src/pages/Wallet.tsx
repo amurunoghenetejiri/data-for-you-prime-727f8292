@@ -195,14 +195,19 @@ export default function Wallet() {
           <button
             type="button"
             onClick={() => fileRef.current?.click()}
-            className="w-full p-3 rounded-lg border-2 border-dashed border-border hover:border-primary hover:bg-accent/40 transition text-sm flex items-center gap-2 justify-center"
+            disabled={pendingFunding || submitting}
+            className="w-full p-3 rounded-lg border-2 border-dashed border-border hover:border-primary hover:bg-accent/40 transition text-sm flex items-center gap-2 justify-center disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {receipt ? <FileCheck2 className="h-4 w-4 text-success" /> : <Upload className="h-4 w-4 text-muted-foreground" />}
-            <span className="truncate">{receipt ? receipt.name : "Click to upload your receipt"}</span>
+            <span className="truncate">{pendingFunding ? "Awaiting admin review…" : receipt ? receipt.name : "Click to upload your receipt"}</span>
           </button>
 
-          <Button onClick={submitFunding} className="w-full mt-4 bg-gradient-primary">Submit Funding</Button>
-          <p className="text-[11px] text-muted-foreground mt-2 text-center">Your payment receipt will be reviewed. You'll be notified once verified.</p>
+          <Button onClick={submitFunding} disabled={pendingFunding || submitting} className="w-full mt-4 bg-gradient-primary">
+            {submitting ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Uploading…</> : pendingFunding ? "Pending review" : "Submit Funding"}
+          </Button>
+          <p className="text-[11px] text-muted-foreground mt-2 text-center">
+            {pendingFunding ? "Upload re-enables after admin approves or rejects your last receipt." : "Your payment receipt will be reviewed. You'll be notified once verified."}
+          </p>
         </Card>
 
         <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setStep("idle"); }}>
