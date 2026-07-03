@@ -42,6 +42,7 @@ import AdminDataPlans from "./pages/admin/DataPlans";
 import AdminAuditLogs from "./pages/admin/AuditLogs";
 import AdminSettings from "./pages/admin/Settings";
 import AdminPaymentSettings from "./pages/admin/PaymentSettings";
+import AdminPricingCharges from "./pages/admin/PricingCharges";
 import AdminActivityCenter from "./pages/admin/ActivityCenter";
 import AdminBroadcast from "./pages/admin/Notifications";
 import { KycPage, ReportsPage, AdminAccountsPage, SecurityPage, SupportPage, DatabasePage } from "./pages/admin/Misc";
@@ -71,6 +72,7 @@ const App = () => (
               <Route path="notifications" element={<AdminBroadcast />} />
               <Route path="settings" element={<AdminSettings />} />
               <Route path="payment-settings" element={<AdminPaymentSettings />} />
+              <Route path="pricing-charges" element={<AdminPricingCharges />} />
               <Route path="activity" element={<AdminActivityCenter />} />
               <Route path="accounts" element={<AdminAccountsPage />} />
               <Route path="audit" element={<AdminAuditLogs />} />

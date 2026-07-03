@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   LayoutDashboard, Users, Receipt, ArrowDownToLine, ArrowUpFromLine, BadgeCheck,
   Package, BarChart3, Bell, Settings, ShieldCheck, FileClock, Lock, LifeBuoy,
-  Database, LogOut, Menu, X, Sparkles, Wifi, CreditCard, Activity, Inbox
+  Database, LogOut, Menu, X, Sparkles, Wifi, CreditCard, Activity, Inbox, Sliders
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,7 @@ const nav = [
   { to: "/admin/activity", label: "Activity Center", icon: Activity },
   { to: "/admin/notifications", label: "Notifications", icon: Bell },
   { to: "/admin/payment-settings", label: "Payment Settings", icon: CreditCard },
+  { to: "/admin/pricing-charges", label: "Pricing & API Settings", icon: Sliders },
   { to: "/admin/settings", label: "System Settings", icon: Settings },
   { to: "/admin/accounts", label: "Admin Accounts", icon: ShieldCheck },
   { to: "/admin/audit", label: "Audit Logs", icon: FileClock },
