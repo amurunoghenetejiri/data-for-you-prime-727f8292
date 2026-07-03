@@ -72,6 +72,7 @@ const App = () => (
               <Route path="notifications" element={<AdminBroadcast />} />
               <Route path="settings" element={<AdminSettings />} />
               <Route path="payment-settings" element={<AdminPaymentSettings />} />
+              <Route path="pricing-charges" element={<AdminPricingCharges />} />
               <Route path="activity" element={<AdminActivityCenter />} />
               <Route path="accounts" element={<AdminAccountsPage />} />
               <Route path="audit" element={<AdminAuditLogs />} />
