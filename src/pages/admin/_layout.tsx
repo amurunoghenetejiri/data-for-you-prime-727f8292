@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   LayoutDashboard, Users, Receipt, ArrowDownToLine, ArrowUpFromLine, BadgeCheck,
   Package, BarChart3, Bell, Settings, ShieldCheck, FileClock, Lock, LifeBuoy,
-  Database, LogOut, Menu, X, Sparkles, Wifi, CreditCard, Activity, Inbox
+  Database, LogOut, Menu, X, Sparkles, Wifi, CreditCard, Activity, Inbox, Sliders
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
