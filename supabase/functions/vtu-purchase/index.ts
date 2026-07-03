@@ -20,7 +20,7 @@ interface Config {
 function loadConfig(): Config {
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-  const smeapiKey = Deno.env.get('SMEAPI_KEY') || '65AC10epAx6cC3C3bAC8Gg9BBAboa9t7i2Aqx2z5EAFBwxkCm1BIfydl483v1782217262';
+  const smeapiKey = Deno.env.get('SMEAPI_KEY');
   const smeapiBaseUrl = Deno.env.get('SMEAPI_BASE_URL') || 'https://api.smeapi.net';
   const smeapiUsername = Deno.env.get('SMEAPI_USERNAME');
 
@@ -116,7 +116,8 @@ function validatePhoneNumber(phone: string): { valid: boolean; error?: string } 
     return { valid: false, error: 'Phone number is required' };
   }
 
-  if (!/^0[789][01]\d{8}$/.test(phone.trim())) {
+  // Allow any 11-digit Nigerian number starting with 0
+  if (!/^0\d{10}$/.test(phone.trim())) {
     return {
       valid: false,
       error: 'Invalid Nigerian phone number. Format: 08012345678',
