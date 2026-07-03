@@ -7,18 +7,20 @@ import { airtimeAmounts, networks, NetworkId } from "@/lib/data";
 import { NetworkBadge } from "@/components/NetworkBadge";
 import { useApp } from "@/context/AppContext";
 import { toast } from "sonner";
-import { CheckCircle2, Phone } from "lucide-react";
+import { CheckCircle2, Phone, Loader2 } from "lucide-react";
 import { PinDialog } from "@/components/PinDialog";
 import { ReceiptDialog } from "@/components/ReceiptDialog";
 import { Transaction } from "@/lib/data";
+import { buyAirtime } from "@/services/vtuPurchase";
 
 export default function BuyAirtime() {
-  const { user, openAuth, wallet, deductWallet, addTransaction, pushNotification } = useApp();
+  const { user, openAuth, wallet, addTransaction, pushNotification, refreshUser } = useApp();
   const [network, setNetwork] = useState<NetworkId>("mtn");
   const [phone, setPhone] = useState("");
   const [amount, setAmount] = useState<number>(500);
   const [pinOpen, setPinOpen] = useState(false);
   const [receipt, setReceipt] = useState<Transaction | null>(null);
+  const [processing, setProcessing] = useState(false);
 
   function attempt() {
     if (!user) { openAuth("login"); return; }
@@ -28,14 +30,51 @@ export default function BuyAirtime() {
     setPinOpen(true);
   }
 
-  function confirmBuy() {
+  async function confirmBuy() {
     setPinOpen(false);
-    if (!deductWallet(amount)) { toast.error("Insufficient wallet balance"); return; }
-    const tx = addTransaction({ type: "airtime", network, phone, amount, status: "success", description: `${network.toUpperCase()} ₦${amount} airtime` });
-    pushNotification({ title: "Airtime purchase successful", body: `₦${amount.toLocaleString()} airtime sent to ${phone}.` });
-    toast.success(`₦${amount} airtime sent to ${phone}`);
-    setReceipt(tx);
-    setPhone("");
+    if (!user) { toast.error("Not authenticated"); return; }
+    if (wallet < amount) { toast.error("Insufficient wallet balance"); return; }
+
+    setProcessing(true);
+    const toastId = toast.loading(`Processing ₦${amount.toLocaleString()} airtime...`);
+    
+    try {
+      const result = await buyAirtime(network, phone, amount);
+      
+      if (!result.success) {
+        toast.error(result.error || "Purchase failed", { id: toastId });
+        setProcessing(false);
+        return;
+      }
+
+      // Success: create local transaction record for UI
+      const tx = addTransaction({
+        type: "airtime",
+        network,
+        phone,
+        amount: result.total || amount,
+        status: "success",
+        description: `${network.toUpperCase()} ₦${amount} airtime`,
+        meta: { tx_id: result.tx_id, charge: result.charge, provider_response: result.response },
+      });
+
+      pushNotification({
+        title: "✅ Airtime purchase successful",
+        body: `₦${amount.toLocaleString()} airtime sent to ${phone}. Charge: ₦${result.charge || 0}`,
+      });
+      
+      toast.success(`₦${amount.toLocaleString()} airtime sent to ${phone}`, { id: toastId });
+      setReceipt(tx);
+      setPhone("");
+      setAmount(500);
+      
+      // Refresh wallet from server
+      setTimeout(() => refreshUser(), 1000);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to process airtime purchase", { id: toastId });
+    } finally {
+      setProcessing(false);
+    }
   }
 
   return (
@@ -48,7 +87,7 @@ export default function BuyAirtime() {
           <Label className="mb-2 block">Network</Label>
           <div className="grid grid-cols-4 gap-3 mb-6">
             {networks.map((n) => (
-              <button key={n.id} onClick={() => setNetwork(n.id)} className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition ${network === n.id ? "border-primary bg-accent" : "border-transparent bg-muted/40 hover:bg-muted"}`}>
+              <button key={n.id} onClick={() => setNetwork(n.id)} disabled={processing} className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition disabled:opacity-50 ${network === n.id ? "border-primary bg-accent" : "border-transparent bg-muted/40 hover:bg-muted"}`.trim()}>
                 <NetworkBadge id={n.id} />
                 <span className="text-sm font-medium">{n.name}</span>
               </button>
@@ -60,23 +99,25 @@ export default function BuyAirtime() {
               <Label htmlFor="aphone" className="mb-2 block">Phone number</Label>
               <div className="relative">
                 <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input id="aphone" inputMode="numeric" maxLength={11} placeholder="08012345678" value={phone} onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))} className="pl-9" />
+                <Input id="aphone" inputMode="numeric" maxLength={11} placeholder="08012345678" value={phone} onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))} className="pl-9" disabled={processing} />
               </div>
             </div>
             <div>
               <Label htmlFor="amt" className="mb-2 block">Amount (₦)</Label>
-              <Input id="amt" inputMode="numeric" value={amount} onChange={(e) => setAmount(Number(e.target.value.replace(/\D/g, "")) || 0)} />
+              <Input id="amt" inputMode="numeric" value={amount} onChange={(e) => setAmount(Number(e.target.value.replace(/\D/g, "")) || 0)} disabled={processing} />
             </div>
           </div>
 
           <Label className="mb-2 block">Quick amounts</Label>
           <div className="grid grid-cols-4 sm:grid-cols-7 gap-2 mb-6">
             {airtimeAmounts.map((a) => (
-              <button key={a} onClick={() => setAmount(a)} className={`px-3 py-2 rounded-lg text-sm font-medium border transition ${amount === a ? "border-primary bg-accent text-accent-foreground" : "border-border hover:bg-muted"}`}>₦{a.toLocaleString()}</button>
+              <button key={a} onClick={() => setAmount(a)} disabled={processing} className={`px-3 py-2 rounded-lg text-sm font-medium border transition disabled:opacity-50 ${amount === a ? "border-primary bg-accent text-accent-foreground" : "border-border hover:bg-muted"}`.trim()}>₦{a.toLocaleString()}</button>
             ))}
           </div>
 
-          <Button onClick={attempt} size="lg" className="w-full bg-gradient-primary shadow-glow">Send Airtime ₦{amount.toLocaleString()}</Button>
+          <Button onClick={attempt} size="lg" className="w-full bg-gradient-primary shadow-glow" disabled={processing}>
+            {processing ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Processing...</> : <>Send Airtime ₦{amount.toLocaleString()}</> }
+          </Button>
         </Card>
 
         <aside className="space-y-4">

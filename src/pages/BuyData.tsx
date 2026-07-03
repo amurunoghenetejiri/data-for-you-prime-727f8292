@@ -9,15 +9,16 @@ import { NetworkBadge } from "@/components/NetworkBadge";
 import { useApp } from "@/context/AppContext";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Search, CheckCircle2, Wallet, CreditCard, Copy, Sparkles, Gift } from "lucide-react";
+import { Search, CheckCircle2, Wallet, CreditCard, Copy, Sparkles, Gift, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { PinDialog } from "@/components/PinDialog";
 import { ReceiptDialog } from "@/components/ReceiptDialog";
 import { Transaction } from "@/lib/data";
 import { supabase } from "@/integrations/supabase/client";
+import { buyData } from "@/services/vtuPurchase";
 
 export default function BuyData() {
-  const { user, openAuth, wallet, deductWallet, addTransaction, settings, pushNotification } = useApp();
+  const { user, openAuth, wallet, addTransaction, settings, pushNotification, refreshUser } = useApp();
   const [network, setNetwork] = useState<NetworkId>("mtn");
   const [phone, setPhone] = useState("");
   const [query, setQuery] = useState("");
@@ -26,6 +27,7 @@ export default function BuyData() {
   const [step, setStep] = useState<"review" | "pay" | "done">("review");
   const [pinOpen, setPinOpen] = useState(false);
   const [receipt, setReceipt] = useState<Transaction | null>(null);
+  const [processing, setProcessing] = useState(false);
 
   const [livePlans, setLivePlans] = useState<DataPlan[] | null>(null);
 
@@ -73,19 +75,61 @@ export default function BuyData() {
     setPinOpen(true);
   }
 
-  function confirmData() {
+  async function confirmData() {
     if (!selected) return;
     setPinOpen(false);
-    deductWallet(selected.price);
-    const tx = addTransaction({ type: "data", network: selected.network, phone, amount: selected.price, status: "success", description: `${selected.network.toUpperCase()} ${selected.size} / ${selected.validity}` });
-    pushNotification({ title: "Data purchase successful", body: `${selected.size} delivered to ${phone}. Cashback: ₦${selected.cashback}.` });
-    // Award cashback
-    if (selected.cashback > 0) {
-      addTransaction({ type: "wallet", amount: selected.cashback, status: "success", description: `Cashback on ${selected.size} ${selected.network.toUpperCase()}` });
+    if (!user) { toast.error("Not authenticated"); return; }
+    if (wallet < selected.price) { toast.error("Insufficient wallet balance"); return; }
+
+    setProcessing(true);
+    const toastId = toast.loading(`Processing ${selected.size}...`);
+
+    try {
+      const result = await buyData(selected.id, phone);
+
+      if (!result.success) {
+        toast.error(result.error || "Purchase failed", { id: toastId });
+        setProcessing(false);
+        return;
+      }
+
+      // Success: create local transaction record for UI
+      const tx = addTransaction({
+        type: "data",
+        network: selected.network,
+        phone,
+        amount: result.total || selected.price,
+        status: "success",
+        description: `${selected.network.toUpperCase()} ${selected.size} / ${selected.validity}`,
+        meta: { tx_id: result.tx_id, charge: result.charge, provider_response: result.response },
+      });
+
+      // Award cashback (client-side only, for demo)
+      if (selected.cashback > 0) {
+        addTransaction({
+          type: "wallet",
+          amount: selected.cashback,
+          status: "success",
+          description: `Cashback on ${selected.size} ${selected.network.toUpperCase()}`,
+        });
+      }
+
+      pushNotification({
+        title: "✅ Data purchase successful",
+        body: `${selected.size} delivered to ${phone}. Cashback: ₦${selected.cashback}. Charge: ₦${result.charge || 0}`,
+      });
+
+      toast.success(`${selected.size} delivered! +₦${selected.cashback} cashback`, { id: toastId });
+      setStep("done");
+      setReceipt(tx);
+      
+      // Refresh wallet from server
+      setTimeout(() => refreshUser(), 1000);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to process data purchase", { id: toastId });
+    } finally {
+      setProcessing(false);
     }
-    setStep("done");
-    setReceipt(tx);
-    toast.success(`Data delivered! +₦${selected.cashback} cashback`);
   }
 
   return (
@@ -103,7 +147,7 @@ export default function BuyData() {
                 <Label className="mb-2 block">Network</Label>
                 <div className="grid grid-cols-4 gap-2">
                   {networks.map((n) => (
-                    <button key={n.id} onClick={() => setNetwork(n.id)} className={`flex flex-col items-center gap-2 p-2 rounded-xl border-2 transition ${network === n.id ? "border-primary bg-accent" : "border-transparent bg-muted/40 hover:bg-muted"}`}>
+                    <button key={n.id} onClick={() => setNetwork(n.id)} disabled={processing} className={`flex flex-col items-center gap-2 p-2 rounded-xl border-2 transition disabled:opacity-50 ${network === n.id ? "border-primary bg-accent" : "border-transparent bg-muted/40 hover:bg-muted"}`.trim()}>
                       <NetworkBadge id={n.id} size="sm" />
                       <span className="text-xs font-medium">{n.name}</span>
                     </button>
@@ -112,18 +156,18 @@ export default function BuyData() {
               </div>
               <div>
                 <Label htmlFor="phone" className="mb-2 block">Phone number</Label>
-                <Input id="phone" inputMode="numeric" maxLength={11} placeholder="08012345678" value={phone} onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))} />
+                <Input id="phone" inputMode="numeric" maxLength={11} placeholder="08012345678" value={phone} onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))} disabled={processing} />
               </div>
             </div>
             <div className="flex flex-col sm:flex-row gap-3">
               <Tabs value={cat} onValueChange={(v) => setCat(v as PlanCategory)} className="flex-1">
                 <TabsList>
-                  {categories.map((c) => <TabsTrigger key={c.id} value={c.id}>{c.label}</TabsTrigger>)}
+                  {categories.map((c) => <TabsTrigger key={c.id} value={c.id} disabled={processing}>{c.label}</TabsTrigger>)}
                 </TabsList>
               </Tabs>
               <div className="relative sm:w-60">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input placeholder="Search size (e.g. 5GB)" value={query} onChange={(e) => setQuery(e.target.value)} className="pl-9" />
+                <Input placeholder="Search size (e.g. 5GB)" value={query} onChange={(e) => setQuery(e.target.value)} className="pl-9" disabled={processing} />
               </div>
             </div>
           </Card>
@@ -132,7 +176,7 @@ export default function BuyData() {
             {plans.map((p) => (
               <Card key={p.id} className="relative p-5 bg-gradient-card shadow-card hover-lift overflow-hidden">
                 <Badge className="absolute top-3 right-3 bg-destructive text-destructive-foreground shadow-md">{p.discount}% OFF</Badge>
-                {p.popular && <span className="absolute top-3 left-3 px-2 py-0.5 rounded-full bg-warning/90 text-black text-[10px] font-bold flex items-center gap-1"><Sparkles className="h-3 w-3" />HOT</span>}
+                {p.popular && <span className="absolute top-3 left-3 px-2 py-0.5 rounded-full bg-warning/90 text-black text-[10px] font-bold flex items-center gap-1"><Sparkles className="h-3 w-3" /> PROMO</span>}
                 <div className="flex items-center gap-3 mb-3 mt-4">
                   <NetworkBadge id={p.network} size="sm" />
                   <div>
@@ -148,7 +192,7 @@ export default function BuyData() {
                 <p className="mt-1 text-xs text-success flex items-center gap-1"><Gift className="h-3 w-3" /> Earn ₦{p.cashback} cashback</p>
                 <div className="mt-4 flex items-center justify-between">
                   <span className="text-[11px] text-muted-foreground">⏳ Flash sale</span>
-                  <Button size="sm" onClick={() => start(p)} className="bg-gradient-primary">Buy</Button>
+                  <Button size="sm" onClick={() => start(p)} disabled={processing} className="bg-gradient-primary">Buy</Button>
                 </div>
               </Card>
             ))}
@@ -189,8 +233,8 @@ export default function BuyData() {
                 <Row label="Amount" highlight>₦{selected.price.toLocaleString()}</Row>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <Button variant="outline" onClick={() => setSelected(null)}>Cancel</Button>
-                <Button onClick={() => setStep("pay")} className="bg-gradient-primary">Proceed</Button>
+                <Button variant="outline" onClick={() => setSelected(null)} disabled={processing}>Cancel</Button>
+                <Button onClick={() => setStep("pay")} className="bg-gradient-primary" disabled={processing}>Proceed</Button>
               </div>
             </>
           )}
@@ -198,10 +242,10 @@ export default function BuyData() {
             <>
               <DialogHeader>
                 <DialogTitle>Choose payment</DialogTitle>
-                <DialogDescription>Demo flow — no real charges.</DialogDescription>
+                <DialogDescription>Your wallet will be charged.</DialogDescription>
               </DialogHeader>
               <div className="space-y-3">
-                <button onClick={payWallet} className="w-full p-4 rounded-xl border-2 border-primary bg-accent text-left hover:shadow-card transition">
+                <button onClick={payWallet} disabled={processing} className="w-full p-4 rounded-xl border-2 border-primary bg-accent text-left hover:shadow-card transition disabled:opacity-50">
                   <div className="flex items-center gap-3"><Wallet className="h-5 w-5 text-primary" /><div className="flex-1"><p className="font-semibold">Pay with wallet</p><p className="text-xs text-muted-foreground">Balance: ₦{wallet.toLocaleString()}</p></div><span className="font-bold">₦{selected.price.toLocaleString()}</span></div>
                 </button>
                 <div className="p-4 rounded-xl border border-border bg-muted/30">
@@ -211,7 +255,6 @@ export default function BuyData() {
                     <Row label="Account">{settings.accountName}</Row>
                     <Row label="Number"><span className="flex items-center gap-2 font-mono">{settings.accountNumber}<Copy className="h-3.5 w-3.5 cursor-pointer hover:text-primary" onClick={() => { navigator.clipboard.writeText(settings.accountNumber); toast.success("Copied"); }} /></span></Row>
                   </div>
-                  <Button size="sm" variant="outline" className="mt-3 w-full" onClick={() => { addTransaction({ type: "data", network: selected.network, phone, amount: selected.price, status: "pending", description: `${selected.network.toUpperCase()} ${selected.size} (transfer)` }); toast.info("Awaiting transfer confirmation"); setSelected(null); }}>I've sent the transfer</Button>
                 </div>
               </div>
             </>
