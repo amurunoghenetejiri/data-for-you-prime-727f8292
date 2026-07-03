@@ -55,7 +55,7 @@ Deno.serve(async (req) => {
     })
     const data = await r.json()
     if (!data?.status) return json({ error: data?.message || 'Init failed' }, 502)
-    return json({ authorization_url: data.data.authorization_url, reference: data.data.reference })
+    return json({ authorization_url: data.data.authorization_url, reference: data.data.reference, gross, charge })
   } catch (e) {
     return json({ error: String(e) }, 500)
   }
