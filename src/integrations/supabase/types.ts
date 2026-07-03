@@ -131,6 +131,54 @@ export type Database = {
         }
         Relationships: []
       }
+      api_providers: {
+        Row: {
+          api_key_secret: string | null
+          api_secret_secret: string | null
+          base_url: string
+          config: Json
+          created_at: string
+          environment: string
+          extra_secret: string | null
+          id: string
+          is_active: boolean
+          name: string
+          slug: string
+          updated_at: string
+          webhook_url: string | null
+        }
+        Insert: {
+          api_key_secret?: string | null
+          api_secret_secret?: string | null
+          base_url: string
+          config?: Json
+          created_at?: string
+          environment?: string
+          extra_secret?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          slug: string
+          updated_at?: string
+          webhook_url?: string | null
+        }
+        Update: {
+          api_key_secret?: string | null
+          api_secret_secret?: string | null
+          base_url?: string
+          config?: Json
+          created_at?: string
+          environment?: string
+          extra_secret?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          slug?: string
+          updated_at?: string
+          webhook_url?: string | null
+        }
+        Relationships: []
+      }
       app_settings: {
         Row: {
           bank_account_name: string
@@ -275,6 +323,33 @@ export type Database = {
         }
         Relationships: []
       }
+      charge_settings: {
+        Row: {
+          is_active: boolean
+          label: string
+          mode: string
+          service: string
+          updated_at: string
+          value: number
+        }
+        Insert: {
+          is_active?: boolean
+          label: string
+          mode?: string
+          service: string
+          updated_at?: string
+          value?: number
+        }
+        Update: {
+          is_active?: boolean
+          label?: string
+          mode?: string
+          service?: string
+          updated_at?: string
+          value?: number
+        }
+        Relationships: []
+      }
       chat_messages: {
         Row: {
           avatar_id: string | null
@@ -381,6 +456,7 @@ export type Database = {
       }
       data_plans: {
         Row: {
+          api_code: string | null
           category: string | null
           cost_price: number
           created_at: string
@@ -394,12 +470,15 @@ export type Database = {
           network: string
           plan_id: string
           plan_name: string
+          profit: number | null
           selling_price: number
           service_fee_percent: number
+          supplier: string | null
           updated_at: string
           validity: string | null
         }
         Insert: {
+          api_code?: string | null
           category?: string | null
           cost_price?: number
           created_at?: string
@@ -413,12 +492,15 @@ export type Database = {
           network: string
           plan_id: string
           plan_name: string
+          profit?: number | null
           selling_price?: number
           service_fee_percent?: number
+          supplier?: string | null
           updated_at?: string
           validity?: string | null
         }
         Update: {
+          api_code?: string | null
           category?: string | null
           cost_price?: number
           created_at?: string
@@ -432,8 +514,10 @@ export type Database = {
           network?: string
           plan_id?: string
           plan_name?: string
+          profit?: number | null
           selling_price?: number
           service_fee_percent?: number
+          supplier?: string | null
           updated_at?: string
           validity?: string | null
         }
@@ -775,34 +859,46 @@ export type Database = {
       transactions: {
         Row: {
           amount: number
+          charge: number
           created_at: string
           description: string | null
           id: string
           meta: Json | null
+          profit: number
+          provider_response: Json | null
           reference: string
           status: string
+          supplier_reference: string | null
           type: string
           user_id: string
         }
         Insert: {
           amount: number
+          charge?: number
           created_at?: string
           description?: string | null
           id?: string
           meta?: Json | null
+          profit?: number
+          provider_response?: Json | null
           reference: string
           status?: string
+          supplier_reference?: string | null
           type: string
           user_id: string
         }
         Update: {
           amount?: number
+          charge?: number
           created_at?: string
           description?: string | null
           id?: string
           meta?: Json | null
+          profit?: number
+          provider_response?: Json | null
           reference?: string
           status?: string
+          supplier_reference?: string | null
           type?: string
           user_id?: string
         }
@@ -987,6 +1083,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      apply_charge: {
+        Args: { _amount: number; _service: string }
+        Returns: number
+      }
       approve_funding: {
         Args: { _id: string; _remark?: string }
         Returns: undefined
@@ -1015,12 +1115,16 @@ export type Database = {
         }
         Returns: {
           amount: number
+          charge: number
           created_at: string
           description: string | null
           id: string
           meta: Json | null
+          profit: number
+          provider_response: Json | null
           reference: string
           status: string
+          supplier_reference: string | null
           type: string
           user_id: string
         }
@@ -1050,6 +1154,10 @@ export type Database = {
           _target_id: string
           _target_type: string
         }
+        Returns: undefined
+      }
+      refund_transaction: {
+        Args: { _reason?: string; _tx_id: string }
         Returns: undefined
       }
       reject_funding: {
