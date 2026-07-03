@@ -30,11 +30,17 @@ Deno.serve(async (req) => {
       userId = prof?.id ?? null
     }
 
+    // Apply per-service funding charge (user pays gross, wallet receives `amount`)
+    const { data: chargeVal } = await svc.rpc('apply_charge', { _service: 'funding_paystack', _amount: Number(amount) })
+    const charge = Number(chargeVal || 0)
+    const gross = Number(amount) + charge
+
     // Persist a pending funding_request so it's tracked even if user drops off
     if (userId) {
       await svc.from('funding_requests').insert({
         user_id: userId, amount: Number(amount), reference,
         provider: 'paystack', status: 'pending', bank: 'Paystack',
+        note: charge > 0 ? `Service charge ₦${charge}. Total paid ₦${gross}.` : null,
       })
     }
 
@@ -42,9 +48,9 @@ Deno.serve(async (req) => {
       method: 'POST',
       headers: { Authorization: `Bearer ${secret}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        email, amount: Math.round(Number(amount) * 100), reference,
+        email, amount: Math.round(gross * 100), reference,
         callback_url: `${origin}/wallet?paystack_ref=${reference}`,
-        metadata: { username, user_id: userId, source: 'data4me-wallet' },
+        metadata: { username, user_id: userId, source: 'data4me-wallet', wallet_credit: Number(amount), charge },
       }),
     })
     const data = await r.json()
