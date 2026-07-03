@@ -25,6 +25,7 @@ const nav = [
   { to: "/admin/activity", label: "Activity Center", icon: Activity },
   { to: "/admin/notifications", label: "Notifications", icon: Bell },
   { to: "/admin/payment-settings", label: "Payment Settings", icon: CreditCard },
+  { to: "/admin/pricing-charges", label: "Pricing & API Settings", icon: Sliders },
   { to: "/admin/settings", label: "System Settings", icon: Settings },
   { to: "/admin/accounts", label: "Admin Accounts", icon: ShieldCheck },
   { to: "/admin/audit", label: "Audit Logs", icon: FileClock },
