@@ -29,10 +29,24 @@ async function loadProvider(svc: any) {
   return { provider: data, secrets };
 }
 
+// Debug logger
+function log(label: string, data: any) {
+  console.log(`[VTU-PURCHASE] ${label}:`, JSON.stringify(data, null, 2));
+}
+
 // ---------------- SMEAPI adapter ----------------
 async function smeapiRequest(ctx: Ctx, path: string, init: RequestInit) {
   const key = ctx.secrets[ctx.provider.api_key_secret] || '';
   const username = ctx.secrets[ctx.provider.config?.username_secret || ''] || '';
+  
+  log('SMEAPI Request', {
+    url: `${ctx.provider.base_url}${path}`,
+    method: init.method,
+    hasKey: !!key,
+    hasUsername: !!username,
+    body: init.body,
+  });
+
   const res = await fetch(`${ctx.provider.base_url}${path}`, {
     ...init,
     headers: {
@@ -43,19 +57,37 @@ async function smeapiRequest(ctx: Ctx, path: string, init: RequestInit) {
       ...(init.headers || {}),
     },
   });
+  
   const text = await res.text();
-  let body: any; try { body = JSON.parse(text); } catch { body = { raw: text }; }
+  let body: any;
+  try {
+    body = JSON.parse(text);
+  } catch {
+    body = { raw: text };
+  }
+  
+  log('SMEAPI Response', {
+    status: res.status,
+    statusText: res.statusText,
+    body,
+  });
+
   return { ok: res.ok, status: res.status, body };
 }
 
 async function providerBuyData(ctx: Ctx, args: { network: string; phone: string; api_code: string }) {
   if (ctx.provider.slug === 'smeapi') {
     const pin = ctx.secrets[ctx.provider.extra_secret || ''] || '';
+    log('Buy Data Request', { network: args.network, phone: args.phone, api_code: args.api_code, hasPin: !!pin });
+    
     return smeapiRequest(ctx, '/data', {
       method: 'POST',
       body: JSON.stringify({
-        network: args.network, mobile_number: args.phone, plan: args.api_code,
-        Ported_number: true, pin,
+        network: args.network,
+        mobile_number: args.phone,
+        plan: args.api_code,
+        Ported_number: true,
+        pin,
       }),
     });
   }
@@ -65,15 +97,33 @@ async function providerBuyData(ctx: Ctx, args: { network: string; phone: string;
 async function providerBuyAirtime(ctx: Ctx, args: { network: string; phone: string; amount: number }) {
   if (ctx.provider.slug === 'smeapi') {
     const pin = ctx.secrets[ctx.provider.extra_secret || ''] || '';
+    log('Buy Airtime Request', { network: args.network, phone: args.phone, amount: args.amount, hasPin: !!pin });
+    
     return smeapiRequest(ctx, '/airtime', {
       method: 'POST',
       body: JSON.stringify({
-        network: args.network, amount: args.amount, mobile_number: args.phone,
-        Ported_number: true, airtime_type: 'VTU', pin,
+        network: args.network,
+        amount: args.amount,
+        mobile_number: args.phone,
+        Ported_number: true,
+        airtime_type: 'VTU',
+        pin,
       }),
     });
   }
   throw new Error(`Unsupported provider: ${ctx.provider.slug}`);
+}
+
+// Check if SMEAPI response indicates success
+function checkSMEAPISuccess(body: any): boolean {
+  if (!body) return false;
+  
+  // SMEAPI returns Status or status field
+  const status = String(body.Status || body.status || body.response_code || '').toLowerCase();
+  log('Status Check', { status, body });
+  
+  // Common success statuses
+  return ['successful', 'success', 'completed', '200', '000'].includes(status);
 }
 
 // ---------------- main handler ----------------
@@ -96,8 +146,12 @@ Deno.serve(async (req) => {
     const action = payload?.action as 'buy-data' | 'buy-airtime';
     if (!action) return json({ error: 'action required' }, 400);
 
+    log('Incoming Request', { action, payload });
+
     const { provider, secrets } = await loadProvider(svc);
     const ctx: Ctx = { svc, userId, provider, secrets };
+
+    log('Provider Loaded', { slug: provider.slug, base_url: provider.base_url });
 
     // ---------- BUY DATA ----------
     if (action === 'buy-data') {
@@ -107,21 +161,28 @@ Deno.serve(async (req) => {
       const { data: plan } = await svc.from('data_plans').select('*').eq('id', plan_id).eq('is_active', true).maybeSingle();
       if (!plan) return json({ error: 'Plan not found or inactive' }, 404);
 
+      log('Plan Found', { id: plan.id, network: plan.network, size: plan.data_size });
+
       const sellingPrice = Number(plan.selling_price);
       const { data: chargeAmt } = await svc.rpc('apply_charge', { _service: 'data', _amount: sellingPrice });
       const charge = Number(chargeAmt || 0);
       const total = sellingPrice + charge;
       const profit = sellingPrice - Number(plan.cost_price || 0);
 
+      log('Charge Calculated', { sellingPrice, charge, total, profit });
+
       // Debit wallet (fails cleanly if insufficient)
       const { data: tx, error: debitErr } = await svc.rpc('debit_wallet', {
-        _user_id: userId, _amount: total, _type: 'data',
+        _user_id: userId,
+        _amount: total,
+        _type: 'data',
         _description: `${String(plan.network).toUpperCase()} ${plan.data_size || plan.plan_name} to ${phone}`,
         _meta: { plan_id, phone, network: plan.network, selling_price: sellingPrice, charge },
       });
       if (debitErr) return json({ error: debitErr.message }, 400);
 
       const txId = (tx as any)?.id ?? (Array.isArray(tx) ? (tx as any)[0]?.id : null);
+      log('Wallet Debited', { txId, amount: total });
 
       // Attach charge/profit
       if (txId) await svc.from('transactions').update({ charge, profit }).eq('id', txId);
@@ -129,27 +190,33 @@ Deno.serve(async (req) => {
       // Call provider
       try {
         const resp = await providerBuyData(ctx, {
-          network: String(plan.network), phone, api_code: plan.api_code || plan.plan_id,
+          network: String(plan.network),
+          phone,
+          api_code: plan.api_code || plan.plan_id,
         });
-        const success = resp.ok && ['successful', 'success', 'completed'].includes(String(resp.body?.Status || resp.body?.status || '').toLowerCase());
+
+        const success = checkSMEAPISuccess(resp.body);
+        log('Provider Response Check', { success, resp });
 
         if (txId) {
           await svc.from('transactions').update({
             provider_response: resp.body,
-            supplier_reference: resp.body?.api_response?.reference || resp.body?.ident || null,
+            supplier_reference: resp.body?.api_response?.reference || resp.body?.ident || resp.body?.reference || null,
             status: success ? 'success' : 'failed',
           }).eq('id', txId);
         }
 
         if (!success) {
           if (txId) await svc.rpc('refund_transaction', { _tx_id: txId, _reason: 'Supplier failure' });
-          return json({ success: false, error: resp.body?.message || 'Provider declined the request', response: resp.body }, 502);
+          const errorMsg = resp.body?.message || resp.body?.error || 'Provider declined the request';
+          return json({ success: false, error: errorMsg, response: resp.body }, 200); // Return 200 but success: false
         }
 
         return json({ success: true, tx_id: txId, charge, total, response: resp.body });
       } catch (err) {
         if (txId) await svc.rpc('refund_transaction', { _tx_id: txId, _reason: 'Network error' });
-        return json({ success: false, error: String(err) }, 502);
+        log('Provider Error', err);
+        return json({ success: false, error: String(err) }, 200); // Return 200 but success: false
       }
     }
 
@@ -160,43 +227,61 @@ Deno.serve(async (req) => {
       if (!network || !/^0[789][01]\d{8}$/.test(phone || '') || !(amt >= 50)) {
         return json({ error: 'network, valid phone, and amount>=50 required' }, 400);
       }
+
+      log('Airtime Request', { network, phone, amount: amt });
+
       const { data: chargeAmt } = await svc.rpc('apply_charge', { _service: 'airtime', _amount: amt });
       const charge = Number(chargeAmt || 0);
       const total = amt + charge;
       const profit = 0; // typically airtime margins come from supplier discount
 
+      log('Charge Calculated', { amount: amt, charge, total });
+
       const { data: tx, error: debitErr } = await svc.rpc('debit_wallet', {
-        _user_id: userId, _amount: total, _type: 'airtime',
+        _user_id: userId,
+        _amount: total,
+        _type: 'airtime',
         _description: `${String(network).toUpperCase()} airtime ₦${amt} to ${phone}`,
         _meta: { network, phone, amount: amt, charge },
       });
       if (debitErr) return json({ error: debitErr.message }, 400);
+
       const txId = (tx as any)?.id ?? (Array.isArray(tx) ? (tx as any)[0]?.id : null);
+      log('Wallet Debited', { txId, amount: total });
+
       if (txId) await svc.from('transactions').update({ charge, profit }).eq('id', txId);
 
       try {
         const resp = await providerBuyAirtime(ctx, { network: String(network), phone, amount: amt });
-        const success = resp.ok && ['successful', 'success', 'completed'].includes(String(resp.body?.Status || resp.body?.status || '').toLowerCase());
+        
+        const success = checkSMEAPISuccess(resp.body);
+        log('Provider Response Check', { success, resp });
+
         if (txId) {
           await svc.from('transactions').update({
             provider_response: resp.body,
-            supplier_reference: resp.body?.api_response?.reference || resp.body?.ident || null,
+            supplier_reference: resp.body?.api_response?.reference || resp.body?.ident || resp.body?.reference || null,
             status: success ? 'success' : 'failed',
           }).eq('id', txId);
         }
+
         if (!success) {
           if (txId) await svc.rpc('refund_transaction', { _tx_id: txId, _reason: 'Supplier failure' });
-          return json({ success: false, error: resp.body?.message || 'Provider declined', response: resp.body }, 502);
+          const errorMsg = resp.body?.message || resp.body?.error || 'Provider declined';
+          return json({ success: false, error: errorMsg, response: resp.body }, 200); // Return 200 but success: false
         }
+
         return json({ success: true, tx_id: txId, charge, total, response: resp.body });
       } catch (err) {
         if (txId) await svc.rpc('refund_transaction', { _tx_id: txId, _reason: 'Network error' });
-        return json({ success: false, error: String(err) }, 502);
+        log('Provider Error', err);
+        return json({ success: false, error: String(err) }, 200); // Return 200 but success: false
       }
     }
 
     return json({ error: 'Unknown action' }, 400);
   } catch (e) {
+    log('Fatal Error', e);
     return json({ error: String(e) }, 500);
   }
 });
